@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import OpenAI from "openai/index.mjs";
 import { parsedIntentSchema, type ParsedIntent } from "./schemas.js";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";

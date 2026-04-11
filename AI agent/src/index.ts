@@ -5,7 +5,6 @@ import { createResolutionDeps } from "./deps/createDeps.js";
 import { handleUserMessage } from "./pipeline.js";
 import { createMessageParser } from "./parseMessage.js";
 import { fetchTxReceiptStatus } from "./txStatus.js";
-import { webhookRouter } from "./routes/webhook.js";
 
 const app = express();
 app.use(express.json());
@@ -105,11 +104,6 @@ app.post("/tx-status", async (req, res) => {
     res.status(500).json({ error: msg });
   }
 });
-
-// ── WhatsApp webhook (Meta Cloud API) ────────────────────────────────────────
-// GET  /webhook — Meta verification challenge
-// POST /webhook — Incoming WhatsApp messages
-app.use("/webhook", webhookRouter);
 
 const port = Number(process.env.PORT) || 3001;
 app.listen(port, () => {
