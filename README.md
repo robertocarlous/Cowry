@@ -25,6 +25,11 @@ Sendr is a WhatsApp-style AI-powered payment application built on the Monad bloc
 
 ---
 
+## Demo Video
+https://drive.google.com/file/d/1Hu-T1Ef_0FCUVetr5JuEiEP7RYdGUMCl/view?usp=drivesdk
+
+
+
 ## The Problem
 
 Crypto payments today are broken for everyday users.
