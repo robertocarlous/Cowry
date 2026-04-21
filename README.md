@@ -28,7 +28,18 @@ Sendr is a WhatsApp-style AI-powered payment application built on the blockchain
 ## Demo Video
 https://drive.google.com/file/d/1Hu-T1Ef_0FCUVetr5JuEiEP7RYdGUMCl/view?usp=drivesdk
 
+## Monad contract deployment
+UsernameRegistry: 0x1264e8ab9e98e2575856b831e606af43bac0fe65,
+    GroupRegistry: 0x5008a18adc0f828d1057fb5af7ad9599ff67f62c,
+    SendrPay: 0x6602f2ee7b05cc382e654bcafbb692bd813f9efa
 
+## BNB contract deployment
+UsernameRegistry
+0x1264e8ab9e98e2575856b831e606af43bac0fe65
+GroupRegistry
+0x5008a18adc0f828d1057fb5af7ad9599ff67f62c
+SendrPay
+0x6602f2ee7b05cc382e654bcafbb692bd813f9efa
 
 ## The Problem
 
