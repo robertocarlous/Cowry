@@ -216,9 +216,13 @@ app.get("/bridge/status", async (req: Request, res: Response) => {
 
 const port = Number(process.env.PORT) || 3001;
 app.listen(port, () => {
-  const { address } = getAgentWallet();
   console.log(`Cowry agent  →  http://localhost:${port}  (resolution: ${deps.mode})`);
-  console.log(`Agent wallet →  ${address}`);
+  try {
+    const { address } = getAgentWallet();
+    console.log(`Agent wallet →  ${address}`);
+  } catch {
+    console.warn(`Agent wallet →  (AGENT_PRIVATE_KEY not set — /agent/info unavailable)`);
+  }
   console.log(`Agent info   →  GET http://localhost:${port}/agent/info`);
   console.log(`Chat         →  POST http://localhost:${port}/chat`);
 });
