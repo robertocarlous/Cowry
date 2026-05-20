@@ -2,7 +2,7 @@ import { isAddress, type PublicClient } from "viem";
 import {
   CELO_USDC,
   groupRegistryContract,
-  sendrpayContract,
+  cowrypayContract,
   userRegistryContract,
 } from "../abi/index.js";
 import { normalizeUsernameForRegistry } from "./normalizeUsername.js";
@@ -34,14 +34,14 @@ export async function readUsdcAddress(
   ) as `0x${string}`;
 
   const supported = await client.readContract({
-    address: sendrpayContract.address,
-    abi: sendrpayContract.abi,
+    address: cowrypayContract.address,
+    abi: cowrypayContract.abi,
     functionName: "supportedTokens",
     args: [candidate],
   });
   if (!supported) {
     throw new Error(
-      `Token ${candidate} is not whitelisted on CowryPay at ${sendrpayContract.address}`,
+      `Token ${candidate} is not whitelisted on CowryPay at ${cowrypayContract.address}`,
     );
   }
   return candidate;

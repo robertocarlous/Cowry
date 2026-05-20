@@ -1,5 +1,5 @@
 import { encodeFunctionData } from "viem";
-import { sendrpayContract } from "../abi/index.js";
+import { cowrypayContract } from "../abi/index.js";
 
 export type EncodedCall = {
   to: `0x${string}`;
@@ -14,12 +14,12 @@ export function encodePay(
   amountBaseUnits: bigint,
 ): EncodedCall {
   const data = encodeFunctionData({
-    abi: sendrpayContract.abi,
+    abi: cowrypayContract.abi,
     functionName: "pay",
     args: [token, to, amountBaseUnits],
   });
   return {
-    to: sendrpayContract.address,
+    to: cowrypayContract.address,
     data,
     value: "0x0",
     description: `CowryPay.pay(token → ${to})`,
@@ -32,12 +32,12 @@ export function encodePayGroupEqual(
   amountPerMemberBaseUnits: bigint,
 ): EncodedCall {
   const data = encodeFunctionData({
-    abi: sendrpayContract.abi,
+    abi: cowrypayContract.abi,
     functionName: "payGroupEqual",
     args: [token, groupId, amountPerMemberBaseUnits],
   });
   return {
-    to: sendrpayContract.address,
+    to: cowrypayContract.address,
     data,
     value: "0x0",
     description: `CowryPay.payGroupEqual(group ${groupId}, ${amountPerMemberBaseUnits} per member)`,
@@ -50,12 +50,12 @@ export function encodePayGroupSplit(
   totalAmountBaseUnits: bigint,
 ): EncodedCall {
   const data = encodeFunctionData({
-    abi: sendrpayContract.abi,
+    abi: cowrypayContract.abi,
     functionName: "payGroupSplit",
     args: [token, groupId, totalAmountBaseUnits],
   });
   return {
-    to: sendrpayContract.address,
+    to: cowrypayContract.address,
     data,
     value: "0x0",
     description: `CowryPay.payGroupSplit(group ${groupId}, total ${totalAmountBaseUnits} base units)`,
