@@ -42,7 +42,7 @@ import {
   formatOpportunitiesList,
   formatApy,
 } from "./lifi/earnClient.js";
-import { getDepositQuote, toBaseUnits, estimateDailyEarnings } from "./lifi/composerClient.js";
+import { getDepositQuote, estimateDailyEarnings } from "./lifi/composerClient.js";
 import type { PendingYieldDeposit } from "./lifi/types.js";
 
 function parseGroupId(
@@ -809,7 +809,7 @@ export async function earnFromIntent(
         opportunityId: vault.id,
         fromChainId: vault.chainId,
         fromTokenAddress: vault.tokenAddress,
-        fromAmount: toBaseUnits(amount, vault.tokenDecimals),
+        fromAmount: toBaseUnits(amount, vault.tokenDecimals).toString(),
         fromAddress:walletAddress,
         toTokenAddress: vault.vaultAddress,
       });
