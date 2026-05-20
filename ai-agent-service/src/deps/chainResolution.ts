@@ -1,4 +1,3 @@
-import type { PublicClient } from "viem";
 import { sendrpayContract } from "../abi/index.js";
 import { encodeCreateGroup } from "../chain/encodeGroupRegistry.js";
 import { encodedCallToJson } from "../chain/encodeSendrPay.js";
@@ -7,7 +6,7 @@ import { encodeRegisterUsername } from "../chain/encodeUserRegistry.js";
 import {
   formatGroupsLinesForWallet,
   isWalletRegisteredOnChain,
-  readUsdcAddress,
+  readUsdmAddress,
   resolveGroupByNameOnChain,
   resolveUsernameOnChain,
 } from "../chain/reads.js";
@@ -15,7 +14,7 @@ import { normalizeUsernameForRegistry } from "../chain/normalizeUsername.js";
 import type { EncodedTxJson, ResolutionDeps, TxMeta } from "./types.js";
 
 export function createChainResolutionDeps(rpcUrl: string): ResolutionDeps {
-  const chainId = Number(process.env.CHAIN_ID || 10143);
+  const chainId = Number(process.env.CHAIN_ID || 42220); // Celo mainnet
   const client = makePublicClient(rpcUrl, chainId);
 
   return {
@@ -46,7 +45,7 @@ export function createChainResolutionDeps(rpcUrl: string): ResolutionDeps {
     },
     getMeta: async (): Promise<TxMeta> => ({
       chainId,
-      usdc: await readUsdcAddress(client),
+      usdm: await readUsdmAddress(client),
       sendrPay: sendrpayContract.address,
     }),
     adminCreateGroup: async (displayName: string, memberHandles: string[]) => {

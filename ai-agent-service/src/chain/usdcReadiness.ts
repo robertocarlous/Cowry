@@ -3,28 +3,29 @@ import type { DraftTxPlan } from "../schemas.js";
 import { readErc20Allowance, readErc20Balance } from "./erc20Reads.js";
 import { USDC_DECIMALS } from "./usdcAmount.js";
 
-/** Total USDC base units SendrPay will pull for this plan. */
+/** Total USDm base units SendrPay will pull for this plan. */
 export function totalBaseUnitsFromTxPlan(plan: DraftTxPlan): bigint {
   switch (plan.mode) {
     case "pay":
       return BigInt(plan.amountBaseUnits);
     case "payGroupEqual":
-      return (
-        BigInt(plan.amountPerMemberBaseUnits) * BigInt(plan.memberCount)
-      );
+      return BigInt(plan.amountPerMemberBaseUnits) * BigInt(plan.memberCount);
     case "payMany":
-      return plan.items.reduce(
+      return plan.items.reduce<bigint>(
         (s, i) => s + BigInt(i.amountBaseUnits),
         0n,
       );
     case "payGroupSplit":
       return BigInt(plan.totalBaseUnits);
+    default:
+      throw new Error(`Unhandled plan mode: ${(plan as { mode: string }).mode}`);
   }
 }
 
 export function formatUsdcFromBase(units: bigint): string {
-  const whole = units / 1_000_000n;
-  const frac = units % 1_000_000n;
+  const divisor = BigInt(10 ** USDC_DECIMALS);
+  const whole = units / divisor;
+  const frac = units % divisor;
   const fracStr = frac
     .toString()
     .padStart(USDC_DECIMALS, "0")

@@ -25,7 +25,7 @@ export type ResolveGroupResult =
 
 export type TxMeta = {
   chainId: number;
-  usdc: `0x${string}`;
+  usdm: `0x${string}`;
   sendrPay: `0x${string}`;
 };
 
