@@ -4,7 +4,7 @@ export const paymentActionSchema = z.enum([
   "SEND_SINGLE",
   "SPLIT_EQUAL",
   "SEND_TO_GROUP",
-  /** Total USDC split across group members via SendrPay.payGroupSplit */
+  /** Total USDC split across group members via CowryPay.payGroupSplit */
   "GROUP_SPLIT_TOTAL",
 ]);
 
@@ -43,14 +43,18 @@ export const parsedIntentSchema = z.discriminatedUnion("kind", [
     members: z.array(z.string()).optional(),
     groupName: z.string().optional(),
     note: z.string().optional(),
+    /** Token symbol the user specified ("USDm" or "USDC"). Defaults to USDm if omitted. */
+    token: z.string().optional(),
   }),
   z.object({
     kind: z.literal("admin"),
     action: adminActionSchema,
     /** REGISTER_USERNAME: on-chain name (a–z, 0–9, 3–32), no @ */
     username: z.string().optional(),
-    /** APPROVE_USDC: human USDC amount to approve for SendrPay */
+    /** APPROVE_USDC: human amount to approve for CowryPay */
     amount: z.number().positive().optional(),
+    /** APPROVE_USDC: token symbol — "USDm" or "USDC". Defaults to USDm if omitted. */
+    token: z.string().optional(),
     groupName: z.string().optional(),
     /** ADD_MEMBERS / REMOVE_MEMBERS / CANCEL_GROUP */
     groupId: z.union([z.string(), z.number()]).optional(),
@@ -79,12 +83,14 @@ export type ParsedIntent = z.infer<typeof parsedIntentSchema>;
 export const draftTxPlanSchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("pay"),
+    token: z.string(),          // ERC-20 address on Celo
     to: z.string(),
     amountHuman: z.number(),
     amountBaseUnits: z.string(),
   }),
   z.object({
     mode: z.literal("payGroupEqual"),
+    token: z.string(),
     groupId: z.string(),
     amountPerMemberHuman: z.number(),
     amountPerMemberBaseUnits: z.string(),
@@ -92,6 +98,7 @@ export const draftTxPlanSchema = z.discriminatedUnion("mode", [
   }),
   z.object({
     mode: z.literal("payMany"),
+    token: z.string(),
     items: z.array(
       z.object({
         to: z.string(),
@@ -102,6 +109,7 @@ export const draftTxPlanSchema = z.discriminatedUnion("mode", [
   }),
   z.object({
     mode: z.literal("payGroupSplit"),
+    token: z.string(),
     groupId: z.string(),
     totalHuman: z.number(),
     totalBaseUnits: z.string(),

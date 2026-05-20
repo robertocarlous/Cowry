@@ -32,7 +32,7 @@ export type TxMeta = {
 export type ResolutionDeps = {
   mode: "mock" | "chain";
   publicClient: PublicClient | null;
-  /** Whether this wallet already claimed a SendR username on-chain / in mock. */
+  /** Whether this wallet already claimed a Cowry username on-chain / in mock. */
   isWalletRegistered(wallet: `0x${string}` | undefined): Promise<boolean>;
   resolveUsername(handle: string): Promise<ResolveUsernameResult>;
   resolveGroupByName(

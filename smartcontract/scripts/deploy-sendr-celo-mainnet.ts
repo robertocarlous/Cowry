@@ -1,5 +1,5 @@
 /**
- * Deploy UsernameRegistry, GroupRegistry, and SendrPay wired to USDm on Celo mainnet.
+ * Deploy UsernameRegistry, GroupRegistry, and CowryPay wired to USDm on Celo mainnet.
  *
  * Prerequisites:
  * - `CELO_DEPLOYER_PRIVATE_KEY` in `.env` (deployer wallet with CELO for gas).
@@ -48,11 +48,11 @@ console.log("Supported tokens:", initialTokens.join(", "));
 
 const registry = await viem.deployContract("UsernameRegistry", []);
 const groups = await viem.deployContract("GroupRegistry", []);
-const pay = await viem.deployContract("SendrPay", [initialTokens, groups.address, owner]);
+const pay = await viem.deployContract("CowryPay", [initialTokens, groups.address, owner]);
 
 console.log("UsernameRegistry:", registry.address);
 console.log("GroupRegistry:   ", groups.address);
-console.log("SendrPay:        ", pay.address);
+console.log("CowryPay:        ", pay.address);
 
 const artifact = {
   chainId: CELO_MAINNET_CHAIN_ID,
@@ -68,7 +68,7 @@ const artifact = {
   contracts: {
     UsernameRegistry: registry.address,
     GroupRegistry: groups.address,
-    SendrPay: pay.address,
+    CowryPay: pay.address,
   },
   explorers: {
     celoscan: "https://celoscan.io",

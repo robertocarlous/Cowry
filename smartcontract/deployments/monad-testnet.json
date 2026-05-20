@@ -11,7 +11,7 @@
   "contracts": {
     "UsernameRegistry": "0x1264e8ab9e98e2575856b831e606af43bac0fe65",
     "GroupRegistry": "0x5008a18adc0f828d1057fb5af7ad9599ff67f62c",
-    "SendrPay": "0x6602f2ee7b05cc382e654bcafbb692bd813f9efa"
+    "CowryPay": "0x6602f2ee7b05cc382e654bcafbb692bd813f9efa"
   },
   "explorers": {
     "monadVision": "https://testnet.monadvision.com",

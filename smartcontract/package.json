@@ -1,5 +1,5 @@
 {
-  "name": "sendr-contract",
+  "name": "cowry-contract",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -7,8 +7,8 @@
     "compile": "hardhat compile",
     "compile:prod": "hardhat compile --build-profile production",
     "test": "hardhat test",
-    "deploy:celo-mainnet": "npm run compile:prod && hardhat run scripts/deploy-sendr-celo-mainnet.ts --network celoMainnet",
-    "verify:celo-mainnet": "hardhat run scripts/verify-sendr-celo-mainnet.ts"
+    "deploy:celo-mainnet": "npm run compile:prod && hardhat run scripts/deploy-cowry-celo-mainnet.ts --network celoMainnet",
+    "verify:celo-mainnet": "hardhat run scripts/verify-cowry-celo-mainnet.ts"
   },
   "keywords": [],
   "author": "",

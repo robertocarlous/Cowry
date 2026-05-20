@@ -1,7 +1,7 @@
 /**
- * Verify deployed Sendr contracts on Sourcify (and CeloScan if CELOSCAN_API_KEY is set).
+ * Verify deployed Cowry contracts on Sourcify (and CeloScan if CELOSCAN_API_KEY is set).
  *
- * Prerequisites: deployments/celo-mainnet.json from deploy-sendr-celo-mainnet.ts
+ * Prerequisites: deployments/celo-mainnet.json from deploy-cowry-celo-mainnet.ts
  *
  * Run: npm run verify:celo-mainnet
  */
@@ -15,7 +15,7 @@ type Deployment = {
   contracts: {
     UsernameRegistry: `0x${string}`;
     GroupRegistry: `0x${string}`;
-    SendrPay: `0x${string}`;
+    CowryPay: `0x${string}`;
   };
 };
 
@@ -41,7 +41,7 @@ run(
 
 // Parent `hardhat verify` resolves --constructor-args-path; `verify sourcify` does not.
 run(
-  `npx hardhat verify ${profile} --network ${network} --contract contracts/SendrPay.sol:SendrPay --constructor-args-path scripts/celo-sendrpay-constructor-args.mjs ${d.contracts.SendrPay}`,
+  `npx hardhat verify ${profile} --network ${network} --contract contracts/CowryPay.sol:CowryPay --constructor-args-path scripts/celo-sendrpay-constructor-args.mjs ${d.contracts.CowryPay}`,
 );
 
 console.log("\n✅ Sourcify verification commands finished.");

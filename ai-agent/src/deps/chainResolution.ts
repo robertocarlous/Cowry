@@ -1,7 +1,7 @@
 import type { PublicClient } from "viem";
-import { sendrpayContract } from "../abi/index.js";
+import { cowrypayContract } from "../abi/index.js";
 import { encodeCreateGroup } from "../chain/encodeGroupRegistry.js";
-import { encodedCallToJson } from "../chain/encodeSendrPay.js";
+import { encodedCallToJson } from "../chain/encodeCowryPay.js";
 import { makePublicClient } from "../chain/client.js";
 import { encodeRegisterUsername } from "../chain/encodeUserRegistry.js";
 import {
@@ -47,7 +47,7 @@ export function createChainResolutionDeps(rpcUrl: string): ResolutionDeps {
     getMeta: async (): Promise<TxMeta> => ({
       chainId,
       usdc: await readUsdcAddress(client),
-      sendrPay: sendrpayContract.address,
+      sendrPay: cowrypayContract.address,
     }),
     adminCreateGroup: async (displayName: string, memberHandles: string[]) => {
       const trimmed = displayName.trim();
@@ -88,7 +88,7 @@ export function createChainResolutionDeps(rpcUrl: string): ResolutionDeps {
           return {
             ok: false,
             reason:
-              "This wallet already has a SendR username on-chain (one name per address).",
+              "This wallet already has a Cowry username on-chain (one name per address).",
           };
         }
       }

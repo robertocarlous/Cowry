@@ -1,5 +1,5 @@
 /**
- * One-time script to register the SendrPay AI agent with Self Agent ID (ERC-8004).
+ * One-time script to register the CowryPay AI agent with Self Agent ID (ERC-8004).
  *
  * What it does:
  * 1. Derives the agent's Ethereum address from AGENT_PRIVATE_KEY
@@ -36,7 +36,7 @@ const rpcUrl = process.env.CELO_RPC_URL ?? "https://forno.celo.org";
 const client = createPublicClient({ chain: celo, transport: http(rpcUrl) });
 
 console.log("───────────────────────────────────────────");
-console.log("  SendrPay AI — Self Agent ID Registration");
+console.log("  CowryPay AI — Self Agent ID Registration");
 console.log("───────────────────────────────────────────");
 console.log("  Agent address :", account.address);
 console.log("  Network       : Celo Mainnet");
@@ -56,7 +56,7 @@ const session = await requestRegistration({
   mode: "verified-wallet",
   network: "mainnet",
   humanAddress: account.address,
-  agentName: "SendrPay AI Agent",
+  agentName: "CowryPay AI Agent",
   disclosures: { ofac: true },
 });
 

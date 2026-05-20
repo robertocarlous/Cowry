@@ -9,10 +9,10 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 import {IGroupRegistry} from "./interfaces/IGroupRegistry.sol";
 
-/// @title SendrPay
+/// @title CowryPay
 /// @notice Pulls a whitelisted token from the payer and sends to one recipient or all
 ///         members of a group in a single tx. Supports multiple tokens (e.g. USDm, USDC).
-contract SendrPay is Ownable, Pausable, ReentrancyGuard {
+contract CowryPay is Ownable, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     IGroupRegistry public immutable groupRegistry;

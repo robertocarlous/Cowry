@@ -25,14 +25,14 @@ export type ResolveGroupResult =
 
 export type TxMeta = {
   chainId: number;
-  usdm: `0x${string}`;
-  sendrPay: `0x${string}`;
+  /** CowryPay contract address — used as the spender in token approvals */
+  cowryPay: `0x${string}`;
 };
 
 export type ResolutionDeps = {
   mode: "mock" | "chain";
   publicClient: PublicClient | null;
-  /** Whether this wallet already claimed a SendR username on-chain / in mock. */
+  /** Whether this wallet already claimed a Cowry username on-chain / in mock. */
   isWalletRegistered(wallet: `0x${string}` | undefined): Promise<boolean>;
   resolveUsername(handle: string): Promise<ResolveUsernameResult>;
   resolveGroupByName(

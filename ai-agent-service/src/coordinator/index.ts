@@ -4,13 +4,13 @@
  * Converts a ResolvedPayment (addresses + amounts) into a single
  * on-chain TxPayload that can be signed by the user's Privy wallet.
  *
- * Single recipient  → SendrPay.pay(to, amount)
+ * Single recipient  → CowryPay.pay(to, amount)
  * Multi-recipient   → Not supported in a single tx without a batch contract.
  *                     The user receives a clear error message so they can
  *                     split the payment or use on-chain group functionality.
  */
 import type { ResolvedPayment, TxPayload } from "../types.js";
-import { encodePay, encodePayGroupEqual } from "../chain/encodeSendrPay.js";
+import { encodePay, encodePayGroupEqual } from "../chain/encodeCowryPay.js";
 import { usdcBaseUnitsFromHuman } from "../chain/usdcAmount.js";
 
 export function buildTxPayload(

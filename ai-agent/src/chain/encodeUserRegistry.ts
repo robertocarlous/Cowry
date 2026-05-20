@@ -1,6 +1,6 @@
 import { encodeFunctionData } from "viem";
 import { userRegistryContract } from "../abi/index.js";
-import type { EncodedCall } from "./encodeSendrPay.js";
+import type { EncodedCall } from "./encodeCowryPay.js";
 
 export function encodeRegisterUsername(name: string): EncodedCall {
   const data = encodeFunctionData({

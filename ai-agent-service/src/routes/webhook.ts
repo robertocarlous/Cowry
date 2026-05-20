@@ -16,7 +16,7 @@ import { encodeErc20Approve }                                                 fr
 import { encodeRegisterUsername }                                             from "../chain/encodeUserRegistry.js";
 import { normalizeUsernameForRegistry }                                       from "../chain/normalizeUsername.js";
 import { encodeCreateGroup, encodeAddMember, encodeRemoveMember }            from "../chain/encodeGroupRegistry.js";
-import { sendrpayContract, groupRegistryContract }                           from "../abi/index.js";
+import { cowrypayContract, groupRegistryContract }                           from "../abi/index.js";
 import { maxUint256, createPublicClient, http, type Chain }                   from "viem";
 import type { User, Intent, ResolvedPayment, PendingTxData, WebhookBody }    from "../types.js";
 import {
@@ -113,7 +113,7 @@ webhookRouter.get("/", (req: Request, res: Response) => {
   }
 
   // Direct browser visit — health check
-  return res.status(200).json({ status: "ok", message: "SendPay webhook is live ✅" });
+  return res.status(200).json({ status: "ok", message: "Cowry webhook is live ✅" });
 });
 
 
@@ -267,7 +267,7 @@ async function handleOnboarding(phone: string, text: string, name: string | null
         walletId: walletForCheck.id,
       });
       await sendMessage(phone,
-        `👋 Welcome back! Your wallet is already registered on SendrPay.\n\n` +
+        `👋 Welcome back! Your wallet is already registered on CowryPay.\n\n` +
         `What is your *@username*? Reply with it so I can restore your account:`
       );
     } else {
@@ -321,7 +321,7 @@ async function handleOnboarding(phone: string, text: string, name: string | null
   // Step 1 — first contact: show wallet address + faucets, ask for username
   if (!session) {
     const greeting = name ? `👋 Hey *${name}*!` : "👋 Hey!";
-    await sendMessage(phone, `${greeting} Welcome to *SendPay* ⚡\n\n⏳ Setting up your wallet...`);
+    await sendMessage(phone, `${greeting} Welcome to *Cowry* ⚡\n\n⏳ Setting up your wallet...`);
 
     await db.setSession(phone, {
       step: "AWAIT_USERNAME",
@@ -620,7 +620,7 @@ async function handleConfirmation(phone: string, confirmed: boolean): Promise<vo
         client,
         usdcAddress,
         user.walletAddress as `0x${string}`,
-        sendrpayContract.address,
+        cowrypayContract.address,
         required,
       );
 
@@ -635,10 +635,10 @@ async function handleConfirmation(phone: string, confirmed: boolean): Promise<vo
         }
 
         if (readiness.reason === "insufficient_allowance") {
-          await sendMessage(phone, "⏳ One-time setup: allowing SendrPay to send USDC on your behalf...");
+          await sendMessage(phone, "⏳ One-time setup: allowing CowryPay to send USDC on your behalf...");
           try {
             // Approve MaxUint256 so this never needs to happen again
-            const approveCall = encodeErc20Approve(usdcAddress, sendrpayContract.address, maxUint256);
+            const approveCall = encodeErc20Approve(usdcAddress, cowrypayContract.address, maxUint256);
 
             // Estimate gas+fees using our RPC so Privy doesn't apply wrong mainnet prices
             const approveGas = await getGasParams(
@@ -678,7 +678,7 @@ async function handleConfirmation(phone: string, confirmed: boolean): Promise<vo
       const usdcAddr  = await readUsdcAddress(payClient);
       const [bal, alw] = await Promise.all([
         readErc20Balance(payClient, usdcAddr, user.walletAddress as `0x${string}`),
-        readErc20Allowance(payClient, usdcAddr, user.walletAddress as `0x${string}`, sendrpayContract.address),
+        readErc20Allowance(payClient, usdcAddr, user.walletAddress as `0x${string}`, cowrypayContract.address),
       ]);
       console.log(`💰 Pre-pay state — balance: ${Number(bal)/1e6} USDC, allowance: ${alw === maxUint256 ? "∞" : Number(alw)/1e6 + " USDC"}`);
     } catch { /* non-fatal */ }
@@ -753,7 +753,7 @@ async function handleCreateGroup(phone: string, user: User, intent: Intent): Pro
     } catch { invalid.push(raw); }
   }
   if (invalid.length > 0) {
-    await sendMessage(phone, `❌ These users aren't on SendrPay:\n${invalid.map(u => `@${u}`).join(", ")}\n\nAsk them to sign up first.`);
+    await sendMessage(phone, `❌ These users aren't on CowryPay:\n${invalid.map(u => `@${u}`).join(", ")}\n\nAsk them to sign up first.`);
     return;
   }
   if (members.length === 0) {

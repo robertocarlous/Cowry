@@ -3,7 +3,7 @@ import type { DraftTxPlan } from "../schemas.js";
 import { readErc20Allowance, readErc20Balance } from "./erc20Reads.js";
 import { USDC_DECIMALS } from "./usdcAmount.js";
 
-/** Total USDC base units SendrPay will pull for this plan. */
+/** Total USDC base units CowryPay will pull for this plan. */
 export function totalBaseUnitsFromTxPlan(plan: DraftTxPlan): bigint {
   switch (plan.mode) {
     case "pay":

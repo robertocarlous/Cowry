@@ -100,7 +100,7 @@ export function ruleParse(message: string): ParsedIntent | null {
   }
 
   const approveFor = raw.match(
-    /^approve\s+\$?\s*([\d,]+(?:\.\d+)?)\s*(?:usd|usdc|dollars?)?\s+for\s+sendr(?:pay)?\s*\.?$/i,
+    /^approve\s+\$?\s*([\d,]+(?:\.\d+)?)\s*(?:usd|usdc|dollars?)?\s+for\s+cowry(?:pay)?\s*\.?$/i,
   );
   if (approveFor) {
     const amount = parseMoneyAmount(approveFor[1]!);
@@ -110,7 +110,7 @@ export function ruleParse(message: string): ParsedIntent | null {
   }
 
   const approveSpend = raw.match(
-    /^(?:approve|allow)\s+sendr(?:pay)?\s+to\s+spend\s+\$?\s*([\d,]+(?:\.\d+)?)\s*(?:usd|usdc|dollars?)?\s*\.?$/i,
+    /^(?:approve|allow)\s+cowry(?:pay)?\s+to\s+spend\s+\$?\s*([\d,]+(?:\.\d+)?)\s*(?:usd|usdc|dollars?)?\s*\.?$/i,
   );
   if (approveSpend) {
     const amount = parseMoneyAmount(approveSpend[1]!);

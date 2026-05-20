@@ -12,7 +12,7 @@ import type { Intent } from "../types.js";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 
-const SYSTEM = `You are a WhatsApp payment assistant intent parser for an app called SendrPay on Monad.
+const SYSTEM = `You are a WhatsApp payment assistant intent parser for an app called CowryPay on Monad.
 Output ONLY valid JSON matching exactly one of these shapes (no markdown, no extra keys):
 
 Payment:

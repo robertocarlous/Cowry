@@ -3,13 +3,13 @@ import { parsedIntentSchema, type ParsedIntent } from "./schemas.js";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 
-const SYSTEM = `You are SendR's intent parser. Output ONLY valid JSON matching this shape:
+const SYSTEM = `You are Cowry's intent parser. Output ONLY valid JSON matching this shape:
 - Register name for wallet (user signs tx): {"kind":"admin","action":"REGISTER_USERNAME","username":"lowercase_no_at"}
 - Payment send to one user: {"kind":"payment","action":"SEND_SINGLE","amount":number,"recipient":"username without @"}
 - Payment to group (same USDC each member): {"kind":"payment","action":"SEND_TO_GROUP","perRecipientAmount":number,"groupName":"string"}
 - Split total USDC across a group (payGroupSplit): {"kind":"payment","action":"GROUP_SPLIT_TOTAL","amount":number,"groupName":"string"}
 - Split total equally: {"kind":"payment","action":"SPLIT_EQUAL","amount":number,"members":["user1","user2",...] without @}
-- Approve USDC for SendrPay: {"kind":"admin","action":"APPROVE_USDC","amount":number}
+- Approve USDC for CowryPay: {"kind":"admin","action":"APPROVE_USDC","amount":number}
 - Add members to group by id: {"kind":"admin","action":"ADD_MEMBERS","groupId":number,"members":["u1","u2"]}
 - Remove members: {"kind":"admin","action":"REMOVE_MEMBERS","groupId":number,"members":["u1"]}
 - Cancel group: {"kind":"admin","action":"CANCEL_GROUP","groupId":number}

@@ -42,7 +42,7 @@ async function main() {
   console.log("Latest block:", block.toString());
 
   const usdc = await readUsdcAddress(client);
-  console.log("SendrPay USDC:", usdc);
+  console.log("CowryPay USDC:", usdc);
 
   const testName =
     process.env.INTEGRATION_TEST_USERNAME?.trim() || "zznonexistent999";

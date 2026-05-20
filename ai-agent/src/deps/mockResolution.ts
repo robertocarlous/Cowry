@@ -1,4 +1,4 @@
-import { sendrpayContract } from "../abi/index.js";
+import { cowrypayContract } from "../abi/index.js";
 import {
   createGroup,
   isWalletRegisteredMock,
@@ -82,7 +82,7 @@ export function createMockResolutionDeps(ctx: ResolverContext): ResolutionDeps {
       return {
         chainId,
         usdc,
-        sendrPay: sendrpayContract.address,
+        sendrPay: cowrypayContract.address,
       };
     },
     async adminCreateGroup(displayName: string, memberHandles: string[]) {

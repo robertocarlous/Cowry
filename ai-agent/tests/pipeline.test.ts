@@ -38,8 +38,8 @@ describe("ruleParse", () => {
     });
   });
 
-  it("parses approve usdc for sendr", () => {
-    expect(ruleParse("approve 250 usdc for sendr")).toMatchObject({
+  it("parses approve usdc for cowry", () => {
+    expect(ruleParse("approve 250 usdc for cowry")).toMatchObject({
       kind: "admin",
       action: "APPROVE_USDC",
       amount: 250,

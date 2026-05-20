@@ -1,5 +1,5 @@
 /**
- * Deploy UsernameRegistry, GroupRegistry, and SendrPay wired to canonical Monad testnet USDC.
+ * Deploy UsernameRegistry, GroupRegistry, and CowryPay wired to canonical Monad testnet USDC.
  *
  * Prerequisites:
  * - `MONAD_TESTNET_PRIVATE_KEY` in `.env` (deployer wallet with MON for gas).
@@ -38,11 +38,11 @@ console.log("USDC (token list):", MONAD_TESTNET_USDC);
 
 const registry = await viem.deployContract("UsernameRegistry", []);
 const groups = await viem.deployContract("GroupRegistry", []);
-const pay = await viem.deployContract("SendrPay", [MONAD_TESTNET_USDC, groups.address, owner]);
+const pay = await viem.deployContract("CowryPay", [MONAD_TESTNET_USDC, groups.address, owner]);
 
 console.log("UsernameRegistry:", registry.address);
 console.log("GroupRegistry:   ", groups.address);
-console.log("SendrPay:        ", pay.address);
+console.log("CowryPay:        ", pay.address);
 
 const artifact = {
   chainId: MONAD_TESTNET_CHAIN_ID,
@@ -57,7 +57,7 @@ const artifact = {
   contracts: {
     UsernameRegistry: registry.address,
     GroupRegistry: groups.address,
-    SendrPay: pay.address,
+    CowryPay: pay.address,
   },
   explorers: {
     monadVision: `https://testnet.monadvision.com`,

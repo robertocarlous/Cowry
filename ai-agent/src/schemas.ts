@@ -4,7 +4,7 @@ export const paymentActionSchema = z.enum([
   "SEND_SINGLE",
   "SPLIT_EQUAL",
   "SEND_TO_GROUP",
-  /** Total USDC split across group members via SendrPay.payGroupSplit */
+  /** Total USDC split across group members via CowryPay.payGroupSplit */
   "GROUP_SPLIT_TOTAL",
 ]);
 
@@ -41,7 +41,7 @@ export const parsedIntentSchema = z.discriminatedUnion("kind", [
     action: adminActionSchema,
     /** REGISTER_USERNAME: on-chain name (a–z, 0–9, 3–32), no @ */
     username: z.string().optional(),
-    /** APPROVE_USDC: human USDC amount to approve for SendrPay */
+    /** APPROVE_USDC: human USDC amount to approve for CowryPay */
     amount: z.number().positive().optional(),
     groupName: z.string().optional(),
     /** ADD_MEMBERS / REMOVE_MEMBERS / CANCEL_GROUP */

@@ -11,7 +11,7 @@ import {
   encodePayGroupEqual,
   encodePayGroupSplit,
   encodedCallToJson,
-} from "./chain/encodeSendrPay.js";
+} from "./chain/encodeCowryPay.js";
 import {
   checkUsdcReadiness,
   formatUsdcFromBase,
@@ -112,18 +112,18 @@ async function buildWelcomeMessage(
   deps: ResolutionDeps,
   wallet: `0x${string}` | undefined,
 ): Promise<string> {
-  const lines: string[] = ["Welcome to **SendR**."];
+  const lines: string[] = ["Welcome to **Cowry**."];
   if (deps.mode === "chain" && wallet && !(await deps.isWalletRegistered(wallet))) {
     lines.push(
       "",
-      "**Your wallet does not have a SendR name yet** — register before sending USDC.",
+      "**Your wallet does not have a Cowry name yet** — register before sending USDC.",
     );
   }
   lines.push(
     "",
     "1. Always send **walletAddress** in the API body (the wallet that will sign).",
     "2. **Register**: **register as yourname** (3–32 chars, a–z and 0–9) — links your @name to your wallet on-chain.",
-    "3. **Pay & groups**: **approve N usdc for sendr** first (or we’ll suggest approve if allowance is low). Then **send $20 to @alice** or **I want to send $100 to group Friends**; **list my groups**; **create group …**.",
+    "3. **Pay & groups**: **approve N usdc for cowry** first (or we’ll suggest approve if allowance is low). Then **send $20 to @alice** or **I want to send $100 to group Friends**; **list my groups**; **create group …**.",
     "Say **help** for more.",
   );
   return lines.join("\n");
@@ -162,7 +162,7 @@ async function maybeUsdcReadinessBlock(
   );
   return {
     type: "clarify",
-    question: `SendrPay needs permission to pull **${req} USDC**; your USDC allowance for SendrPay is only **${alw} USDC**. Sign **approve** below (sets allowance to **${req} USDC** for this spender), then send the same payment again and **confirm**.`,
+    question: `CowryPay needs permission to pull **${req} USDC**; your USDC allowance for CowryPay is only **${alw} USDC**. Sign **approve** below (sets allowance to **${req} USDC** for this spender), then send the same payment again and **confirm**.`,
     transactions: [approveTx],
   };
 }
@@ -541,14 +541,14 @@ export async function adminFromIntent(
       return {
         kind: "clarify",
         question:
-          "Say how much USDC to approve, e.g. **approve 500 usdc for sendr** or **approve sendr to spend 50**.",
+          "Say how much USDC to approve, e.g. **approve 500 usdc for cowry** or **approve cowry to spend 50**.",
       };
     }
     if (deps.mode !== "chain") {
       return {
         kind: "info",
         message:
-          "Mock mode has no USDC on-chain. With **MONAD_RPC_URL** set, **approve 500 usdc for sendr** returns **USDC.approve(SendrPay, …)** calldata.",
+          "Mock mode has no USDC on-chain. With **MONAD_RPC_URL** set, **approve 500 usdc for cowry** returns **USDC.approve(CowryPay, …)** calldata.",
       };
     }
     if (!wallet) {
@@ -563,7 +563,7 @@ export async function adminFromIntent(
     const tx = encodeErc20Approve(meta.usdc, meta.sendrPay, base);
     return {
       kind: "info",
-      message: `Sign **USDC.approve** so SendrPay can pull up to **${amt} USDC** (approve more if you plan several payments).`,
+      message: `Sign **USDC.approve** so CowryPay can pull up to **${amt} USDC** (approve more if you plan several payments).`,
       transactions: [encodedCallToJson(tx)],
     };
   }
@@ -673,9 +673,9 @@ export async function adminFromIntent(
     return {
       kind: "info",
       message: [
-        "SendR — USDC via SendrPay (Monad testnet when RPC is set):",
+        "Cowry — USDC via CowryPay (Monad testnet when RPC is set):",
         "• **register as yourname** — links @name to your wallet (sign UsernameRegistry.register)",
-        "• **approve 500 usdc for sendr** — USDC.approve so SendrPay can pull funds",
+        "• **approve 500 usdc for cowry** — USDC.approve so CowryPay can pull funds",
         "• send $20 to @alice — or send 20.5 usd to @alice",
         "• I want to send $100 to group Friends — or send 10 to everyone in Friends",
         "• split $30 among @alice, @bob, @carol",
@@ -738,7 +738,7 @@ export async function handleUserMessage(
         return {
           type: "clarify",
           question:
-            "Pass **walletAddress** in the request body to confirm (must match a registered SendR wallet).",
+            "Pass **walletAddress** in the request body to confirm (must match a registered Cowry wallet).",
         };
       }
       if (!(await deps.isWalletRegistered(walletAddress))) {
@@ -819,14 +819,14 @@ export async function handleUserMessage(
         return {
           type: "clarify",
           question:
-            "Include **walletAddress** in the JSON body. We use it to confirm your wallet is registered with a SendR name before sending USDC, and to find your groups.",
+            "Include **walletAddress** in the JSON body. We use it to confirm your wallet is registered with a Cowry name before sending USDC, and to find your groups.",
         };
       }
       if (!(await deps.isWalletRegistered(walletAddress))) {
         return {
           type: "clarify",
           question:
-            "Link your wallet to a SendR name first: say **register as yourname** (3–32 chars, a–z and 0–9), sign the UsernameRegistry transaction, then try paying again.",
+            "Link your wallet to a Cowry name first: say **register as yourname** (3–32 chars, a–z and 0–9), sign the UsernameRegistry transaction, then try paying again.",
         };
       }
     }

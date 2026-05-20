@@ -168,8 +168,8 @@ export type ChatResponse =
       preview: string;
       tx: {
         chainId: number;
-        usdc: { address: string; decimals: 6 };
-        sendrPay: string;
+        token: { address: string; symbol: string; decimals: number };
+        cowryPay: string;
         note: string;
         transactions: EncodedTxJson[];
       };

@@ -1,5 +1,5 @@
 import { encodeFunctionData, erc20Abi } from "viem";
-import type { EncodedCall } from "./encodeSendrPay.js";
+import type { EncodedCall } from "./encodeCowryPay.js";
 
 /** `to` must be the USDC (ERC-20) contract. */
 export function encodeErc20Approve(
@@ -16,6 +16,6 @@ export function encodeErc20Approve(
     to: usdc,
     data,
     value: "0x0",
-    description: `USDC.approve(SendrPay, ${amount.toString()} base units)`,
+    description: `USDC.approve(CowryPay, ${amount.toString()} base units)`,
   };
 }

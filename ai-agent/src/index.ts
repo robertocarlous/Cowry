@@ -107,7 +107,7 @@ app.post("/tx-status", async (req, res) => {
 
 const port = Number(process.env.PORT) || 3001;
 app.listen(port, () => {
-  console.log(`SendR agent listening on http://localhost:${port} (resolution: ${deps.mode})`);
+  console.log(`Cowry agent listening on http://localhost:${port} (resolution: ${deps.mode})`);
   console.log(
     "Example: curl -s -X POST http://localhost:%s/chat -H \"Content-Type: application/json\" -d '{\"sessionId\":\"u1\",\"walletAddress\":\"0xYourWallet\",\"message\":\"send 20 to @alice\"}'",
     port,

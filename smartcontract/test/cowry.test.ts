@@ -3,7 +3,7 @@ import { beforeEach, describe, it } from "node:test";
 
 import { network } from "hardhat";
 
-describe("Sendr stack", async function () {
+describe("Cowry stack", async function () {
   const { viem } = await network.connect();
   const publicClient = await viem.getPublicClient();
 
@@ -20,7 +20,7 @@ describe("Sendr stack", async function () {
     usdm = await viem.deployContract("MockUSDM", []);   // 18 decimals
     usdc = await viem.deployContract("MockUSDC", []);   // 6 decimals
     groups = await viem.deployContract("GroupRegistry", []);
-    pay = await viem.deployContract("SendrPay", [
+    pay = await viem.deployContract("CowryPay", [
       [usdm.address, usdc.address],
       groups.address,
       owner.account.address,
@@ -70,7 +70,7 @@ describe("Sendr stack", async function () {
     assert.equal(g2[2], false);
   });
 
-  it("SendrPay: whitelist — supported and unsupported tokens", async function () {
+  it("CowryPay: whitelist — supported and unsupported tokens", async function () {
     assert.equal(await pay.read.supportedTokens([usdm.address]), true);
     assert.equal(await pay.read.supportedTokens([usdc.address]), true);
 
@@ -80,7 +80,7 @@ describe("Sendr stack", async function () {
     );
   });
 
-  it("SendrPay: pay with USDm (18 decimals)", async function () {
+  it("CowryPay: pay with USDm (18 decimals)", async function () {
     const D = 10n ** 18n;
     const amount = 100n * D;
     await usdm.write.mint([alice.account.address, amount * 10n]);
@@ -90,7 +90,7 @@ describe("Sendr stack", async function () {
     assert.equal(await usdm.read.balanceOf([bob.account.address]), amount);
   });
 
-  it("SendrPay: pay with USDC (6 decimals)", async function () {
+  it("CowryPay: pay with USDC (6 decimals)", async function () {
     const D = 10n ** 6n;
     const amount = 100n * D;
     await usdc.write.mint([alice.account.address, amount * 10n]);
@@ -100,7 +100,7 @@ describe("Sendr stack", async function () {
     assert.equal(await usdc.read.balanceOf([bob.account.address]), amount);
   });
 
-  it("SendrPay: payGroupEqual and payGroupSplit with USDm", async function () {
+  it("CowryPay: payGroupEqual and payGroupSplit with USDm", async function () {
     const D = 10n ** 18n;
     const mint = 1_000_000n * D;
     await usdm.write.mint([alice.account.address, mint]);
@@ -125,7 +125,7 @@ describe("Sendr stack", async function () {
     await pay.write.payGroupSplit([usdm.address, id, splitTotal], { account: alice.account });
   });
 
-  it("SendrPay: reverts when group cancelled", async function () {
+  it("CowryPay: reverts when group cancelled", async function () {
     const tx = await groups.write.createGroup(["X"], { account: alice.account });
     await publicClient.waitForTransactionReceipt({ hash: tx });
     const id = 1n;

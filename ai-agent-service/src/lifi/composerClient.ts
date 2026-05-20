@@ -9,7 +9,7 @@
 import type { ComposerQuote } from "./types.js";
 
 const COMPOSER_BASE = "https://li.quest";
-const INTEGRATOR    = process.env.LIFI_INTEGRATOR?.trim() || "sendpay";
+const INTEGRATOR    = process.env.LIFI_INTEGRATOR?.trim() || "cowry";
 
 export interface DepositQuoteParams {
   /** The LI.FI opportunity ID from the Earn Data API */

@@ -1,8 +1,8 @@
-# Sendr — Conversational Crypto Payments 
+# Cowry — Conversational Crypto Payments 
 
 > **Send money as easily as sending a message.**
 
-Sendr is a WhatsApp-style AI-powered payment application built on the blockchain. It eliminates the complexity of traditional crypto payments by letting users send funds, manage groups, and automate financial actions through simple, natural language commands — no wallet addresses, no confusing interfaces, just conversation.
+Cowry is a WhatsApp-style AI-powered payment application built on the blockchain. It eliminates the complexity of traditional crypto payments by letting users send funds, manage groups, and automate financial actions through simple, natural language commands — no wallet addresses, no confusing interfaces, just conversation.
 
 ---
 
@@ -31,21 +31,21 @@ https://drive.google.com/file/d/1Hu-T1Ef_0FCUVetr5JuEiEP7RYdGUMCl/view?usp=drive
 ## Celo mainnet deployment (chainId 42220)
 UsernameRegistry: `0x3b89d7b4997db5645db2829523ed3e79e55a0f02`  
 GroupRegistry: `0xee7ee3852663917a12ef95852a9fc4e092e45a31`  
-SendrPay: `0x2b0d2f1dec9ab3e06668145d21ed17715e288350`  
+CowryPay: `0x2b0d2f1dec9ab3e06668145d21ed17715e288350`  
 USDC: `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` · USDm: `0x765DE816845861e75A25fCA122bb6898B8B1282a`  
 [Sourcify](https://sourcify.dev/server/repo-ui/42220/0x2b0d2f1dec9ab3e06668145d21ed17715e288350) · [CeloScan](https://celoscan.io/address/0x2b0d2f1dec9ab3e06668145d21ed17715e288350)
 
 ## Monad contract deployment
 UsernameRegistry: 0x1264e8ab9e98e2575856b831e606af43bac0fe65,
     GroupRegistry: 0x5008a18adc0f828d1057fb5af7ad9599ff67f62c,
-    SendrPay: 0x6602f2ee7b05cc382e654bcafbb692bd813f9efa
+    CowryPay: 0x6602f2ee7b05cc382e654bcafbb692bd813f9efa
 
 ## BNB contract deployment
 UsernameRegistry
 0x1264e8ab9e98e2575856b831e606af43bac0fe65
 GroupRegistry
 0x5008a18adc0f828d1057fb5af7ad9599ff67f62c
-SendrPay
+CowryPay
 0x6602f2ee7b05cc382e654bcafbb692bd813f9efa
 
 ## The Problem
@@ -65,7 +65,7 @@ The result is that crypto payments remain a tool for the technically sophisticat
 
 ## The Solution
 
-Sendr bridges the gap between the power of blockchain payments and the simplicity of everyday messaging apps.
+Cowry bridges the gap between the power of blockchain payments and the simplicity of everyday messaging apps.
 
 Instead of interacting with raw wallet infrastructure, users simply type what they want to do — just like sending a WhatsApp message. The AI understands the intent, resolves usernames to wallet addresses, presents a clear confirmation, and executes the transaction on Monad.
 
@@ -75,7 +75,7 @@ Instead of interacting with raw wallet infrastructure, users simply type what th
 "Send $5k to @ada every Friday" → Recurring automated payment
 ```
 
-Sendr makes crypto payments as simple as texting.
+Cowry makes crypto payments as simple as texting.
 
 ---
 
@@ -83,7 +83,7 @@ Sendr makes crypto payments as simple as texting.
 
 ### 1. Wallet Connection & Identity
 
-Users create their crypto wallet on their first visit. The wallet acts as the cryptographic backbone of their identity on Sendr — it is the source of truth for who they are and what they own. No new seed phrases, no new accounts to manage.
+Users create their crypto wallet on their first visit. The wallet acts as the cryptographic backbone of their identity on Cowry — it is the source of truth for who they are and what they own. No new seed phrases, no new accounts to manage.
 
 ### 2. Username System
 
@@ -91,14 +91,14 @@ Every user claims a unique, human-readable username (e.g., `@tolu`, `@ada`, `@jo
 
 - Usernames are **globally unique** — no two users can hold the same username
 - Claims are **one-time and permanent** — once a username is registered, it belongs to that wallet
-- Usernames are **human-readable** — they replace wallet addresses entirely in the Sendr experience
+- Usernames are **human-readable** — they replace wallet addresses entirely in the Cowry experience
 - The mapping is stored on-chain, making it **trustless and verifiable** by anyone
 
 This system solves one of the most fundamental UX problems in crypto: you no longer need to know someone's wallet address. You just need their username.
 
 ### 3. AI Chat Interface
 
-The core of Sendr is a WhatsApp-style chat interface powered by an AI agent. Users interact with the AI entirely in natural language — no menus, no forms, no complicated flows.
+The core of Cowry is a WhatsApp-style chat interface powered by an AI agent. Users interact with the AI entirely in natural language — no menus, no forms, no complicated flows.
 
 The AI is capable of:
 - Understanding the **intent** behind a message ("send", "split", "create group", "automate")
@@ -106,11 +106,11 @@ The AI is capable of:
 - **Handling ambiguity** gracefully by asking clarifying questions when a command is unclear
 - **Confirming actions** before executing any transaction, giving users full control
 
-The interface is intentionally familiar. If you have ever used WhatsApp, Telegram, or iMessage, you already know how to use Sendr.
+The interface is intentionally familiar. If you have ever used WhatsApp, Telegram, or iMessage, you already know how to use Cowry.
 
 ### 4. Individual Payments
 
-Users can send funds to any other Sendr user by simply typing a command. The AI parses the request, resolves the recipient's username to their wallet address, displays a clear confirmation card, and executes the transaction upon approval.
+Users can send funds to any other Cowry user by simply typing a command. The AI parses the request, resolves the recipient's username to their wallet address, displays a clear confirmation card, and executes the transaction upon approval.
 
 **Example commands:**
 - `"Send $2,000 to @tolu"`
@@ -141,11 +141,11 @@ Once groups exist, sending money to all members is as simple as naming the group
 - `"Split $10k among the Family group"`
 - `"Pay each person in Work $500"`
 
-For split payments, Sendr automatically calculates each person's share and handles the math — users never need to divide manually.
+For split payments, Cowry automatically calculates each person's share and handles the math — users never need to divide manually.
 
 ### 7. AI Automation (Advanced)
 
-Sendr supports recurring and conditional payment automation. Users define rules in natural language, and the AI agent executes them automatically according to the defined schedule or condition.
+Cowry supports recurring and conditional payment automation. Users define rules in natural language, and the AI agent executes them automatically according to the defined schedule or condition.
 
 **Example commands:**
 - `"Send ₦5,000 to @tolu every Friday"`
@@ -156,7 +156,7 @@ Automations are transparent and fully user-controlled. Users can list, pause, or
 
 ### 8. Safety & Confirmation Layer
 
-No transaction in Sendr is ever executed without explicit user confirmation. Before every payment — individual, group, or automated — the system presents a structured preview that includes:
+No transaction in Cowry is ever executed without explicit user confirmation. Before every payment — individual, group, or automated — the system presents a structured preview that includes:
 
 - Recipient name(s) and username(s)
 - Exact amount per recipient
@@ -164,11 +164,11 @@ No transaction in Sendr is ever executed without explicit user confirmation. Bef
 - Network and estimated gas fee
 - A clear confirm / cancel prompt
 
-Additionally, Sendr includes behavioral checks that flag potentially suspicious activity, such as unusually large amounts, new recipients, or duplicate transactions within a short timeframe.
+Additionally, Cowry includes behavioral checks that flag potentially suspicious activity, such as unusually large amounts, new recipients, or duplicate transactions within a short timeframe.
 
 ### 9. Social Layer
 
-Payments in Sendr are social by nature. Users can attach notes and emoji to any payment, making the experience feel personal rather than transactional.
+Payments in Cowry are social by nature. Users can attach notes and emoji to any payment, making the experience feel personal rather than transactional.
 
 - **Payment notes:** `"Send $1k to @tolu for shawarma 🌯"`
 - **Emoji reactions:** Recipients can react to incoming payments
@@ -207,7 +207,7 @@ The chat interface updates with a success message and a summary of the transacti
 ### Onboarding
 
 ```
-1. User opens Sendr
+1. User opens Cowry
 2. Create their crypto wallet 
 3. Claims a unique username (e.g., @tolu)
 4. Username is registered on-chain, mapped to their wallet address
@@ -219,7 +219,7 @@ The chat interface updates with a success message and a summary of the transacti
 ```
 User:  "Send $2k to @ada"
 
-Sendr: Here's your payment summary:
+Cowry: Here's your payment summary:
        ┌────────────────────────────┐
        │ To:      @ada              │
        │ Amount:  $2,000            │
@@ -230,7 +230,7 @@ Sendr: Here's your payment summary:
 
 User:  Confirm
 
-Sendr: ✅ Done! $2,000 sent to @ada.
+Cowry: ✅ Done! $2,000 sent to @ada.
        View on explorer →
 ```
 
@@ -239,7 +239,7 @@ Sendr: ✅ Done! $2,000 sent to @ada.
 ```
 User:  "Create a group called Friends with @tolu, @ada, and @chidi"
 
-Sendr: Got it! Creating group "Friends" with 3 members:
+Cowry: Got it! Creating group "Friends" with 3 members:
        • @tolu
        • @ada
        • @chidi
@@ -247,7 +247,7 @@ Sendr: Got it! Creating group "Friends" with 3 members:
 
 User:  Yes
 
-Sendr: ✅ Group "Friends" created with 3 members.
+Cowry: ✅ Group "Friends" created with 3 members.
 ```
 
 ### Sending to a Group
@@ -255,7 +255,7 @@ Sendr: ✅ Group "Friends" created with 3 members.
 ```
 User:  "Send $2k to everyone in Friends"
 
-Sendr: Here's your payment summary:
+Cowry: Here's your payment summary:
        ┌────────────────────────────┐
        │ Group:   Friends (3 people)│
        │ Each:    $2,000            │
@@ -267,14 +267,14 @@ Sendr: Here's your payment summary:
 
 User:  Confirm
 
-Sendr: ✅ ₦2,000 sent to @tolu, @ada, and @chidi.
+Cowry: ✅ ₦2,000 sent to @tolu, @ada, and @chidi.
 ```
 
 ---
 
 ## Architecture Overview
 
-Sendr is composed of three integrated layers:
+Cowry is composed of three integrated layers:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -305,11 +305,11 @@ Sendr is composed of three integrated layers:
 
 ## Smart Contracts
 
-Sendr is powered by three core smart contracts deployed on Monad.
+Cowry is powered by three core smart contracts deployed on Monad.
 
 ### Username Registry Contract
 
-The Username Registry is responsible for maintaining the mapping between human-readable usernames and wallet addresses. It is the foundational identity layer of the entire Sendr system.
+The Username Registry is responsible for maintaining the mapping between human-readable usernames and wallet addresses. It is the foundational identity layer of the entire Cowry system.
 
 **Key responsibilities:**
 - Accepting new username registration requests
@@ -351,7 +351,7 @@ Groups can be stored either on-chain or in a performant off-chain index (such as
 
 ## AI Layer
 
-The AI layer is the brain of Sendr. It transforms unstructured human language into structured, executable payment instructions.
+The AI layer is the brain of Cowry. It transforms unstructured human language into structured, executable payment instructions.
 
 ### Intent Classification
 
@@ -384,7 +384,7 @@ When a command is missing required information or is ambiguous, the AI asks a ta
 
 ```
 User:  "Send money to @tolu"
-Sendr: How much would you like to send to @tolu?
+Cowry: How much would you like to send to @tolu?
 ```
 
 ### Safety Checks
@@ -418,7 +418,7 @@ A user sets up a personal rule: `"Every time I receive money, save 20% to @my-sa
 
 ## Security & Safety
 
-Security is a first-class concern in Sendr, given that the application handles real financial transactions.
+Security is a first-class concern in Cowry, given that the application handles real financial transactions.
 
 **Smart Contract Security**
 - Contracts are designed to be minimal and auditable — no unnecessary complexity

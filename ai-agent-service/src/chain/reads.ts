@@ -1,7 +1,7 @@
 import type { PublicClient } from "viem";
 import {
   groupRegistryContract,
-  sendrpayContract,
+  cowrypayContract,
   userRegistryContract,
 } from "../abi/index.js";
 import { normalizeUsernameForRegistry } from "./normalizeUsername.js";
@@ -99,8 +99,8 @@ export async function readUsdmAddress(
   client: PublicClient,
 ): Promise<`0x${string}`> {
   const addr = await client.readContract({
-    address: sendrpayContract.address,
-    abi: sendrpayContract.abi,
+    address: cowrypayContract.address,
+    abi: cowrypayContract.abi,
     functionName: "usdm",
   });
   return addr as `0x${string}`;

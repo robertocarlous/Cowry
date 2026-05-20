@@ -12,7 +12,7 @@ async function main() {
   const rl = readline.createInterface({ input, output });
 
   console.log(
-    `SendR CLI — resolution: ${deps.mode}. Mock usernames: @tolu, @ada, @john; groups: Friends, Family.`,
+    `Cowry CLI — resolution: ${deps.mode}. Mock usernames: @tolu, @ada, @john; groups: Friends, Family.`,
   );
   console.log(
     "Optional: export WALLET=0x... for on-chain group list / group pay (chain mode).",

@@ -25,7 +25,7 @@ export async function resolveOne(
   const result = await resolveUsernameOnChain(client, raw);
   if (!result.ok) {
     throw new Error(
-      `@${result.username} is not registered on SendrPay yet. Ask them to message this number to sign up.`,
+      `@${result.username} is not registered on CowryPay yet. Ask them to message this number to sign up.`,
     );
   }
   return { username: result.username, address: result.address };

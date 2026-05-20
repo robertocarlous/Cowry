@@ -7,6 +7,12 @@ import { createMessageParser } from "./parseMessage.js";
 import { fetchTxReceiptStatus } from "./txStatus.js";
 import { getAgentWallet } from "./agent/wallet.js";
 import { getAgentIdStatus } from "./agent/selfId.js";
+import {
+  getBridgeQuote,
+  getBridgeStatus,
+  formatBridgeSummary,
+  SUPPORTED_CHAINS,
+} from "./lifi/bridgeClient.js";
 
 const app = express();
 app.use(express.json());
@@ -115,12 +121,103 @@ app.post("/tx-status", async (req: Request, res: Response) => {
   }
 });
 
+// ── LI.FI cross-chain bridge ──────────────────────────────────────────────────
+
+/**
+ * GET /bridge/chains
+ * Returns the list of supported chains with their USDC/USDm token addresses.
+ * Frontend uses this to build the chain + token selector.
+ */
+app.get("/bridge/chains", (_req: Request, res: Response) => {
+  res.json({ chains: Object.values(SUPPORTED_CHAINS) });
+});
+
+/**
+ * POST /bridge/quote  — bidirectional (inbound to Celo OR outbound from Celo)
+ *
+ * Body:
+ *   fromChainId       — source chain ID  (e.g. 1, 8453, 42220)
+ *   fromTokenAddress  — token address on source chain
+ *   fromAmount        — amount in base units as string  (e.g. "100000000")
+ *   fromAddress       — sender wallet address
+ *   toChainId         — destination chain ID  (e.g. 42220, 1, 8453)
+ *   toTokenAddress    — token address on destination chain
+ *   toAddress         — recipient wallet address
+ *
+ * Returns: { quoteId, tool, summary, transactionRequest, estimate }
+ * The frontend signs transactionRequest on fromChainId, then polls /bridge/status.
+ */
+app.post("/bridge/quote", async (req: Request, res: Response) => {
+  const {
+    fromChainId,
+    fromTokenAddress,
+    fromAmount,
+    fromAddress,
+    toChainId,
+    toTokenAddress,
+    toAddress,
+  } = req.body ?? {};
+
+  if (!fromChainId || !fromTokenAddress || !fromAmount || !fromAddress ||
+      !toChainId   || !toTokenAddress   || !toAddress) {
+    res.status(400).json({
+      error: "Required: fromChainId, fromTokenAddress, fromAmount, fromAddress, toChainId, toTokenAddress, toAddress",
+      hint: "Call GET /bridge/chains for supported chain IDs and token addresses",
+    });
+    return;
+  }
+
+  try {
+    const quote = await getBridgeQuote({
+      fromChainId:      Number(fromChainId),
+      fromTokenAddress: String(fromTokenAddress),
+      fromAmount:       String(fromAmount),
+      fromAddress:      fromAddress as `0x${string}`,
+      toChainId:        Number(toChainId),
+      toTokenAddress:   String(toTokenAddress),
+      toAddress:        toAddress as `0x${string}`,
+    });
+    res.json({
+      quoteId:            quote.id,
+      tool:               quote.tool,
+      summary:            formatBridgeSummary(quote),
+      transactionRequest: quote.transactionRequest,
+      estimate:           quote.estimate,
+    });
+  } catch (e) {
+    res.status(502).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/**
+ * GET /bridge/status?txHash=0x...&fromChainId=1&toChainId=42220
+ * Poll after broadcasting the bridge tx.
+ * Returns: { status: "PENDING" | "DONE" | "FAILED" | "NOT_FOUND", toTxHash?, receivedAmount? }
+ */
+app.get("/bridge/status", async (req: Request, res: Response) => {
+  const txHash      = req.query.txHash      as string;
+  const fromChainId = Number(req.query.fromChainId);
+  const toChainId   = Number(req.query.toChainId);
+
+  if (!txHash || !fromChainId || !toChainId) {
+    res.status(400).json({ error: "Required query params: txHash, fromChainId, toChainId" });
+    return;
+  }
+
+  try {
+    const status = await getBridgeStatus(txHash, fromChainId, toChainId);
+    res.json(status);
+  } catch (e) {
+    res.status(502).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 
 const port = Number(process.env.PORT) || 3001;
 app.listen(port, () => {
   const { address } = getAgentWallet();
-  console.log(`SendR agent  →  http://localhost:${port}  (resolution: ${deps.mode})`);
+  console.log(`Cowry agent  →  http://localhost:${port}  (resolution: ${deps.mode})`);
   console.log(`Agent wallet →  ${address}`);
   console.log(`Agent info   →  GET http://localhost:${port}/agent/info`);
   console.log(`Chat         →  POST http://localhost:${port}/chat`);

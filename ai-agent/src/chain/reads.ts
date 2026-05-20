@@ -2,7 +2,7 @@ import { isAddress, type PublicClient } from "viem";
 import {
   CELO_USDC,
   groupRegistryContract,
-  sendrpayContract,
+  cowrypayContract,
   userRegistryContract,
 } from "../abi/index.js";
 import { normalizeUsernameForRegistry } from "./normalizeUsername.js";
@@ -24,7 +24,7 @@ export async function isWalletRegisteredOnChain(
   return hash !== ZERO_HASH;
 }
 
-/** Default payment token (USDC). Set USDC_ADDRESS in .env; must be whitelisted on SendrPay. */
+/** Default payment token (USDC). Set USDC_ADDRESS in .env; must be whitelisted on CowryPay. */
 export async function readUsdcAddress(
   client: PublicClient,
 ): Promise<`0x${string}`> {
@@ -34,14 +34,14 @@ export async function readUsdcAddress(
   ) as `0x${string}`;
 
   const supported = await client.readContract({
-    address: sendrpayContract.address,
-    abi: sendrpayContract.abi,
+    address: cowrypayContract.address,
+    abi: cowrypayContract.abi,
     functionName: "supportedTokens",
     args: [candidate],
   });
   if (!supported) {
     throw new Error(
-      `Token ${candidate} is not whitelisted on SendrPay at ${sendrpayContract.address}`,
+      `Token ${candidate} is not whitelisted on CowryPay at ${cowrypayContract.address}`,
     );
   }
   return candidate;
