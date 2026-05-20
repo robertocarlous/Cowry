@@ -35,7 +35,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { step: "01", title: "Open Cowry in MiniPay", desc: "No signup. Your MiniPay wallet connects automatically." },
+  { step: "01", title: "Open Cowry", desc: "Works in any browser or inside MiniPay. Your wallet connects automatically — no signup needed." },
   { step: "02", title: "Register your @username", desc: "Claim a unique name that maps to your wallet on-chain — forever." },
   { step: "03", title: "Type what you want", desc: `"Send $5 USDm to @tolu" or "Split $30 among Friends group".` },
   { step: "04", title: "Tap Confirm", desc: "Review the preview, tap Confirm. Cowry handles the rest." },
@@ -114,7 +114,7 @@ export default function LandingPage() {
             href="/app"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-cowry-blue text-cowry-darker font-bold px-8 py-3.5 rounded-full text-sm hover:bg-cowry-mint transition-colors animate-glow"
           >
-            <span>Open in MiniPay</span>
+            <span>Launch App</span>
             <span>→</span>
           </Link>
           <a
@@ -124,6 +124,17 @@ export default function LandingPage() {
             See how it works
           </a>
         </div>
+        <p className="mt-3 text-xs text-cowry-muted">
+          Works in any browser · Best in{" "}
+          <a
+            href="https://minipay.opera.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cowry-blue hover:underline"
+          >
+            MiniPay
+          </a>
+        </p>
 
         {/* Demo command preview */}
         <div className="mt-14 max-w-sm mx-auto">
@@ -259,7 +270,7 @@ export default function LandingPage() {
           />
           <h2 className="text-3xl sm:text-5xl font-black mb-4 glow-text">Ready to try Cowry?</h2>
           <p className="text-cowry-muted mb-8 leading-relaxed">
-            Open in MiniPay, register your @username, and send your first payment in under a minute.
+            Open Cowry in your browser or MiniPay, register your @username, and send your first payment in under a minute.
           </p>
           <Link
             href="/app"
