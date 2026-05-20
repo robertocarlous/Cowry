@@ -14,7 +14,6 @@ import {
 } from "./chain/encodeCowryPay.js";
 import {
   checkUsdcReadiness,
-  formatUsdcFromBase,
   totalBaseUnitsFromTxPlan,
 } from "./chain/usdcReadiness.js";
 import {
@@ -554,7 +553,7 @@ export async function adminFromIntent(
       return {
         kind: "info",
         message:
-          "Mock mode has no USDC on-chain. With **MONAD_RPC_URL** set, **approve 500 usdc for cowry** returns **USDC.approve(CowryPay, …)** calldata.",
+          "Mock mode has no USDm/USDC on-chain. With **CELO_RPC_URL** set, **approve 500 usdm for cowry** returns **USDm.approve(CowryPay, …)** calldata.",
       };
     }
     if (!wallet) {
@@ -680,7 +679,7 @@ export async function adminFromIntent(
     return {
       kind: "info",
       message: [
-        "Cowry — USDC via CowryPay (Monad testnet when RPC is set):",
+        "Cowry — USDm & USDC payments via CowryPay on Celo:",
         "• **register as yourname** — links @name to your wallet (sign UsernameRegistry.register)",
         "• **approve 500 usdc for cowry** — USDC.approve so CowryPay can pull funds",
         "• send $20 to @alice — or send 20.5 usd to @alice",
