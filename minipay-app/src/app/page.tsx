@@ -5,7 +5,7 @@ const FEATURES = [
   {
     icon: "💬",
     title: "Talk to Pay",
-    desc: "Just type what you want — "Send 20 USDm to @ada". No forms, no addresses, no complexity.",
+    desc: `Just type what you want — "Send 20 USDm to @ada". No forms, no addresses, no complexity.`,
   },
   {
     icon: "👥",
@@ -37,7 +37,7 @@ const FEATURES = [
 const STEPS = [
   { step: "01", title: "Open Cowry in MiniPay", desc: "No signup. Your MiniPay wallet connects automatically." },
   { step: "02", title: "Register your @username", desc: "Claim a unique name that maps to your wallet on-chain — forever." },
-  { step: "03", title: "Type what you want", desc: "\"Send $5 USDm to @tolu\" or \"Split $30 among Friends group\"." },
+  { step: "03", title: "Type what you want", desc: `"Send $5 USDm to @tolu" or "Split $30 among Friends group".` },
   { step: "04", title: "Tap Confirm", desc: "Review the preview, tap Confirm. Cowry handles the rest." },
 ];
 
