@@ -1,10 +1,11 @@
 "use client";
 import { useState, useRef } from "react";
-import { useWallet } from "@/hooks/useWallet";
-import { useChat }   from "@/hooks/useChat";
-import { MessageBubble } from "./MessageBubble";
-import { BridgePanel }   from "./BridgePanel";
-import type { Message }  from "@/lib/types";
+import { useWallet }        from "@/hooks/useWallet";
+import { useChat }          from "@/hooks/useChat";
+import { MessageBubble }    from "./MessageBubble";
+import { BridgePanel }      from "./BridgePanel";
+import { RegisterScreen }   from "./RegisterScreen";
+import type { Message }     from "@/lib/types";
 
 const SUGGESTIONS = [
   "Send 5 USDm to @alice",
@@ -14,10 +15,24 @@ const SUGGESTIONS = [
 ];
 
 export function ChatInterface() {
-  const { address, shortAddress, inMiniPay, loading: walletLoading, connect, isConnected } = useWallet();
-  const { messages, loading, txLoading, send, confirm, cancel, signAndSend, addBotMessage, bottomRef } = useChat(address ?? null);
-  const [input,       setInput]       = useState("");
-  const [showBridge,  setShowBridge]  = useState(false);
+  const {
+    address,
+    username,
+    shortAddress,
+    inMiniPay,
+    loading: walletLoading,
+    connect,
+    onRegistered,
+    isConnected,
+    isRegistered,
+    isChecking,
+  } = useWallet();
+
+  const { messages, loading, txLoading, send, confirm, cancel, signAndSend, addBotMessage, bottomRef } =
+    useChat(address ?? null);
+
+  const [input,      setInput]      = useState("");
+  const [showBridge, setShowBridge] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSend = () => {
@@ -28,10 +43,7 @@ export function ChatInterface() {
   };
 
   const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   const handleSign = (r: Extract<Message["response"], { type: "tx_ready" }>) => {
@@ -39,46 +51,62 @@ export function ChatInterface() {
     signAndSend(r.tx.transactions, r.tx.token.symbol);
   };
 
-  if (walletLoading) {
+  // ── Loading wallet ────────────────────────────────────────────────────────
+  if (walletLoading || isChecking) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-sm text-gray-400 animate-pulse">Loading wallet…</p>
+      <div className="flex-1 flex items-center justify-center bg-cowry-dark">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 mx-auto rounded-full border-4 border-cowry-blue border-t-transparent animate-spin" />
+          <p className="text-sm text-cowry-muted animate-pulse">
+            {walletLoading ? "Connecting wallet…" : "Checking registration…"}
+          </p>
+        </div>
       </div>
     );
   }
 
+  // ── Not connected ─────────────────────────────────────────────────────────
   if (!isConnected) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
+      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 bg-cowry-dark text-white">
         <div className="text-center space-y-2">
-          <p className="text-4xl">🐚</p>
-          <h1 className="text-2xl font-bold text-cowry-secondary">Cowry</h1>
-          <p className="text-sm text-gray-500">Send money as easily as sending a message</p>
+          <p className="text-5xl mb-4">🐚</p>
+          <h1 className="text-2xl font-bold">Cowry</h1>
+          <p className="text-sm text-cowry-muted">Send money as easily as sending a message</p>
         </div>
         {!inMiniPay && (
           <button
             onClick={connect}
-            className="w-full max-w-xs bg-cowry-primary text-white font-semibold py-3 rounded-2xl text-sm"
+            className="w-full max-w-xs bg-cowry-blue text-cowry-darker font-bold py-3.5 rounded-full text-sm hover:bg-cowry-mint transition-colors"
           >
             Connect Wallet
           </button>
         )}
         {inMiniPay && (
-          <p className="text-xs text-gray-400 text-center">Connecting to MiniPay…</p>
+          <p className="text-xs text-cowry-muted animate-pulse">Connecting to MiniPay…</p>
         )}
       </div>
     );
   }
 
+  // ── Registration gate ─────────────────────────────────────────────────────
+  if (!isRegistered) {
+    return <RegisterScreen address={address!} onRegistered={onRegistered} />;
+  }
+
+  // ── Main chat ─────────────────────────────────────────────────────────────
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+
       {/* Header */}
       <div className="bg-cowry-secondary text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xl">🐚</span>
           <div>
             <p className="text-sm font-semibold leading-tight">Cowry</p>
-            <p className="text-[10px] text-green-300 leading-tight">{shortAddress}</p>
+            <p className="text-[10px] text-green-300 leading-tight">
+              {username ? `@${username}` : shortAddress}
+            </p>
           </div>
         </div>
         <button
@@ -95,7 +123,7 @@ export function ChatInterface() {
           <div className="flex flex-col items-center gap-4 pt-10">
             <p className="text-4xl">🐚</p>
             <p className="text-sm text-gray-500 text-center">
-              Say hi or try a command below
+              {username ? `Hi @${username}! ` : ""}Say hi or try a command below
             </p>
             <div className="flex flex-col gap-2 w-full max-w-xs">
               {SUGGESTIONS.map((s) => (
@@ -169,10 +197,7 @@ export function ChatInterface() {
         <BridgePanel
           walletAddress={address}
           onClose={() => setShowBridge(false)}
-          onSuccess={(msg) => {
-            setShowBridge(false);
-            addBotMessage(msg);
-          }}
+          onSuccess={(msg) => { setShowBridge(false); addBotMessage(msg); }}
         />
       )}
     </div>
