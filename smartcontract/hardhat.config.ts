@@ -14,6 +14,11 @@ const celoMainnetRpcUrl =
 
 const celoscanApiKey = process.env.CELOSCAN_API_KEY ?? "";
 
+const celoDeployerKey =
+  process.env.CELO_DEPLOYER_PRIVATE_KEY?.trim() ||
+  process.env.PRIVATE_KEY?.trim() ||
+  "";
+
 export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
   chainDescriptors: {
@@ -55,7 +60,9 @@ export default defineConfig({
       chainType: "l1",
       chainId: CELO_MAINNET_CHAIN_ID,
       url: celoMainnetRpcUrl,
-      accounts: [configVariable("CELO_DEPLOYER_PRIVATE_KEY")],
+      accounts: celoDeployerKey
+        ? [celoDeployerKey]
+        : [configVariable("CELO_DEPLOYER_PRIVATE_KEY")],
     },
   },
   verify: {

@@ -1,5 +1,5 @@
 export const CELO_MAINNET_CHAIN_ID = 42220;
-export const CELO_MAINNET_RPC_DEFAULT = "https://felo.celo.org";
+export const CELO_MAINNET_RPC_DEFAULT = "https://forno.celo.org";
 
 /** USDm (Mento Dollar) on Celo mainnet — 18 decimals */
 export const CELO_USDM_ADDRESS = "0x765DE816845861e75A25fCA122bb6898B8B1282a";

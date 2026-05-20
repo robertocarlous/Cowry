@@ -3,7 +3,7 @@
  *
  * Prerequisites:
  * - `CELO_DEPLOYER_PRIVATE_KEY` in `.env` (deployer wallet with CELO for gas).
- * - Optional: `CELO_RPC_URL` (defaults to https://felo.celo.org).
+ * - Optional: `CELO_RPC_URL` (defaults to https://forno.celo.org).
  *
  * Run: npm run deploy:celo-mainnet
  */
@@ -24,10 +24,20 @@ const { viem } = await network.connect({
   chainType: "l1",
 });
 
+const publicClient = await viem.getPublicClient();
 const [deployer] = await viem.getWalletClients();
 const owner = deployer.account.address;
 
 const rpcUrl = process.env.CELO_RPC_URL ?? CELO_MAINNET_RPC_DEFAULT;
+
+const balance = await publicClient.getBalance({ address: owner });
+const minDeployWei = 500_000_000_000_000_000n; // ~0.5 CELO — rough headroom for 3 contracts
+if (balance < minDeployWei) {
+  console.error(
+    `Deployer ${owner} has ${balance} wei CELO; need at least ~0.5 CELO for three contract deploys. Fund the wallet and retry.`,
+  );
+  process.exit(1);
+}
 
 const initialTokens: `0x${string}`[] = [CELO_USDM_ADDRESS, CELO_USDC_ADDRESS];
 
