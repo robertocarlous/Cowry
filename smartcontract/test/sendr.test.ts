@@ -7,6 +7,7 @@ describe("Sendr stack", async function () {
   const { viem } = await network.connect();
   const publicClient = await viem.getPublicClient();
 
+  let usdm: Awaited<ReturnType<typeof viem.deployContract>>;
   let usdc: Awaited<ReturnType<typeof viem.deployContract>>;
   let groups: Awaited<ReturnType<typeof viem.deployContract>>;
   let pay: Awaited<ReturnType<typeof viem.deployContract>>;
@@ -16,9 +17,14 @@ describe("Sendr stack", async function () {
   const [owner, alice, bob, carol, dave] = wallets;
 
   beforeEach(async function () {
-    usdc = await viem.deployContract("MockUSDC", []);
+    usdm = await viem.deployContract("MockUSDM", []);   // 18 decimals
+    usdc = await viem.deployContract("MockUSDC", []);   // 6 decimals
     groups = await viem.deployContract("GroupRegistry", []);
-    pay = await viem.deployContract("SendrPay", [usdc.address, groups.address, owner.account.address]);
+    pay = await viem.deployContract("SendrPay", [
+      [usdm.address, usdc.address],
+      groups.address,
+      owner.account.address,
+    ]);
     registry = await viem.deployContract("UsernameRegistry", []);
   });
 
@@ -64,9 +70,40 @@ describe("Sendr stack", async function () {
     assert.equal(g2[2], false);
   });
 
-  it("SendrPay: pay and group pay", async function () {
-    const mint = 1_000_000n * 10n ** 6n;
-    await usdc.write.mint([alice.account.address, mint]);
+  it("SendrPay: whitelist — supported and unsupported tokens", async function () {
+    assert.equal(await pay.read.supportedTokens([usdm.address]), true);
+    assert.equal(await pay.read.supportedTokens([usdc.address]), true);
+
+    const other = "0x0000000000000000000000000000000000000001";
+    await assert.rejects(
+      pay.write.pay([other, bob.account.address, 1n], { account: alice.account }),
+    );
+  });
+
+  it("SendrPay: pay with USDm (18 decimals)", async function () {
+    const D = 10n ** 18n;
+    const amount = 100n * D;
+    await usdm.write.mint([alice.account.address, amount * 10n]);
+    await usdm.write.approve([pay.address, amount * 10n], { account: alice.account });
+
+    await pay.write.pay([usdm.address, bob.account.address, amount], { account: alice.account });
+    assert.equal(await usdm.read.balanceOf([bob.account.address]), amount);
+  });
+
+  it("SendrPay: pay with USDC (6 decimals)", async function () {
+    const D = 10n ** 6n;
+    const amount = 100n * D;
+    await usdc.write.mint([alice.account.address, amount * 10n]);
+    await usdc.write.approve([pay.address, amount * 10n], { account: alice.account });
+
+    await pay.write.pay([usdc.address, bob.account.address, amount], { account: alice.account });
+    assert.equal(await usdc.read.balanceOf([bob.account.address]), amount);
+  });
+
+  it("SendrPay: payGroupEqual and payGroupSplit with USDm", async function () {
+    const D = 10n ** 18n;
+    const mint = 1_000_000n * D;
+    await usdm.write.mint([alice.account.address, mint]);
 
     const tx = await groups.write.createGroup(["Team"], { account: alice.account });
     await publicClient.waitForTransactionReceipt({ hash: tx });
@@ -76,21 +113,16 @@ describe("Sendr stack", async function () {
     await groups.write.addMember([id, carol.account.address], { account: alice.account });
     await groups.write.addMember([id, dave.account.address], { account: alice.account });
 
-    const amount = 100n * 10n ** 6n;
-    await usdc.write.approve([pay.address, amount * 10n], { account: alice.account });
-    await pay.write.pay([bob.account.address, amount], { account: alice.account });
-    assert.equal(await usdc.read.balanceOf([bob.account.address]), amount);
-
-    const per = 50n * 10n ** 6n;
+    const per = 50n * D;
     const totalEq = per * 3n;
-    await usdc.write.approve([pay.address, totalEq], { account: alice.account });
-    await pay.write.payGroupEqual([id, per], { account: alice.account });
-    assert.equal(await usdc.read.balanceOf([carol.account.address]), per);
-    assert.equal(await usdc.read.balanceOf([dave.account.address]), per);
+    await usdm.write.approve([pay.address, totalEq], { account: alice.account });
+    await pay.write.payGroupEqual([usdm.address, id, per], { account: alice.account });
+    assert.equal(await usdm.read.balanceOf([bob.account.address]), per);
+    assert.equal(await usdm.read.balanceOf([carol.account.address]), per);
 
-    const splitTotal = 100n * 10n ** 6n + 1n;
-    await usdc.write.approve([pay.address, splitTotal], { account: alice.account });
-    await pay.write.payGroupSplit([id, splitTotal], { account: alice.account });
+    const splitTotal = 100n * D + 1n;
+    await usdm.write.approve([pay.address, splitTotal], { account: alice.account });
+    await pay.write.payGroupSplit([usdm.address, id, splitTotal], { account: alice.account });
   });
 
   it("SendrPay: reverts when group cancelled", async function () {
@@ -98,11 +130,10 @@ describe("Sendr stack", async function () {
     await publicClient.waitForTransactionReceipt({ hash: tx });
     const id = 1n;
     await groups.write.addMember([id, bob.account.address], { account: alice.account });
-
     await groups.write.cancelGroup([id], { account: alice.account });
-    await usdc.write.mint([alice.account.address, 10n ** 12n]);
-    await usdc.write.approve([pay.address, 10n ** 12n], { account: alice.account });
 
-    await assert.rejects(pay.write.payGroupEqual([id, 1n], { account: alice.account }));
+    await usdm.write.mint([alice.account.address, 10n ** 30n]);
+    await usdm.write.approve([pay.address, 10n ** 30n], { account: alice.account });
+    await assert.rejects(pay.write.payGroupEqual([usdm.address, id, 1n], { account: alice.account }));
   });
 });
