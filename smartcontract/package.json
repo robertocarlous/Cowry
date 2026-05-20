@@ -7,8 +7,8 @@
     "compile": "hardhat compile",
     "compile:prod": "hardhat compile --build-profile production",
     "test": "hardhat test",
-    "deploy:monad-testnet": "npm run compile:prod && hardhat run scripts/deploy-sendr-monad-testnet.ts --network monadTestnet",
-    "verify:monad-testnet": "hardhat verify --network monadTestnet --build-profile production"
+    "deploy:celo-mainnet": "npm run compile:prod && hardhat run scripts/deploy-sendr-celo-mainnet.ts --network celoMainnet",
+    "verify:celo-mainnet": "hardhat verify --network celoMainnet --build-profile production"
   },
   "keywords": [],
   "author": "",
