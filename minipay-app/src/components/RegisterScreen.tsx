@@ -8,7 +8,7 @@ import {
   getUsernameFromChain,
   isRegisteredOnChain,
 } from "@/lib/registry";
-import { getPublicClient } from "@/lib/wallet";
+import { getPublicClient, switchToCelo } from "@/lib/wallet";
 
 interface Props {
   address: `0x${string}`;
@@ -35,6 +35,8 @@ export function RegisterScreen({ address, onRegistered }: Props) {
     setStep("signing");
 
     try {
+      // Ensure the wallet is on Celo before signing
+      await switchToCelo();
       const hash = await registerUsername(name.toLowerCase().trim());
       setTxHash(hash);
       setStep("confirming");

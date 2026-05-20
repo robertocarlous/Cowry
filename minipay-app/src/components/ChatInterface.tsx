@@ -23,6 +23,8 @@ export function ChatInterface() {
     loading: walletLoading,
     connect,
     onRegistered,
+    ensureCelo,
+    wrongChain,
     isConnected,
     isRegistered,
     isChecking,
@@ -116,6 +118,19 @@ export function ChatInterface() {
           🌉 Cross-chain
         </button>
       </div>
+
+      {/* Wrong-chain banner */}
+      {wrongChain && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 flex-shrink-0">
+          <p className="text-xs text-amber-400">⚠️ Switch to Celo to send payments</p>
+          <button
+            onClick={ensureCelo}
+            className="text-xs font-semibold text-amber-300 hover:text-amber-100 transition-colors"
+          >
+            Switch →
+          </button>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 bg-cowry-surface">

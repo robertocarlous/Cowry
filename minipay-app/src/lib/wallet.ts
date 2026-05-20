@@ -52,6 +52,58 @@ export async function requestAccounts(): Promise<`0x${string}` | null> {
   }
 }
 
+/** Returns the current chain ID from the injected provider. */
+export async function getCurrentChainId(): Promise<number | null> {
+  const provider = getProvider();
+  if (!provider) return null;
+  try {
+    const hex = await provider.request({ method: "eth_chainId" }) as string;
+    return parseInt(hex, 16);
+  } catch {
+    return null;
+  }
+}
+
+const CELO_CHAIN_PARAMS = {
+  chainId:           "0xA4EC",        // 42220
+  chainName:         "Celo Mainnet",
+  nativeCurrency:    { name: "CELO", symbol: "CELO", decimals: 18 },
+  rpcUrls:           ["https://forno.celo.org"],
+  blockExplorerUrls: ["https://celoscan.io"],
+};
+
+/**
+ * Switch the injected wallet to Celo mainnet (chain 42220).
+ * Adds the network if it isn't in the wallet yet.
+ * No-op if already on Celo or inside MiniPay (always Celo).
+ */
+export async function switchToCelo(): Promise<void> {
+  if (isMiniPay()) return;              // MiniPay is always on Celo
+  const provider = getProvider();
+  if (!provider) return;
+
+  const current = await getCurrentChainId();
+  if (current === 42220) return;        // already on Celo
+
+  try {
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: "0xA4EC" }],
+    });
+  } catch (err: unknown) {
+    // Error 4902 = chain not added yet — add it first
+    const code = (err as { code?: number }).code;
+    if (code === 4902) {
+      await provider.request({
+        method: "wallet_addEthereumChain",
+        params: [CELO_CHAIN_PARAMS],
+      });
+    } else {
+      throw err;
+    }
+  }
+}
+
 /**
  * Sign and broadcast a transaction using MiniPay / injected wallet.
  * Uses legacy transaction type (MiniPay requirement — no EIP-1559).
