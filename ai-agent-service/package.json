@@ -10,10 +10,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "tsx scripts/integration-smoke.ts",
-    "chat": "tsx scripts/chat-cli.ts"
+    "chat": "tsx scripts/chat-cli.ts",
+    "register:agent": "tsx scripts/register-self-agent.ts"
   },
   "dependencies": {
     "@privy-io/server-auth": "^1.32.5",
+    "@selfxyz/agent-sdk": "^0.1.1",
     "dotenv": "^16.4.5",
     "ethers": "^6.16.0",
     "express": "^4.21.0",

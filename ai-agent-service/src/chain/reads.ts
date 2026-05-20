@@ -23,13 +23,13 @@ export async function isWalletRegisteredOnChain(
   return hash !== ZERO_HASH;
 }
 
-export async function readUsdcAddress(
+export async function readUsdmAddress(
   client: PublicClient,
 ): Promise<`0x${string}`> {
   const addr = await client.readContract({
     address: sendrpayContract.address,
     abi: sendrpayContract.abi,
-    functionName: "usdc",
+    functionName: "usdm",
   });
   return addr as `0x${string}`;
 }

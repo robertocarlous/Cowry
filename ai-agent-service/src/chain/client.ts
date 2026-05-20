@@ -6,8 +6,8 @@ export function makePublicClient(
 ): PublicClient {
   const chain: Chain = {
     id: chainId,
-    name: "monad-testnet",
-    nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
+    name: "celo",
+    nativeCurrency: { name: "CELO", symbol: "CELO", decimals: 18 },
     rpcUrls: { default: { http: [rpcUrl] } },
   };
   return createPublicClient({
