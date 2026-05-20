@@ -28,6 +28,13 @@ Sendr is a WhatsApp-style AI-powered payment application built on the blockchain
 ## Demo Video
 https://drive.google.com/file/d/1Hu-T1Ef_0FCUVetr5JuEiEP7RYdGUMCl/view?usp=drivesdk
 
+## Celo mainnet deployment (chainId 42220)
+UsernameRegistry: `0x3b89d7b4997db5645db2829523ed3e79e55a0f02`  
+GroupRegistry: `0xee7ee3852663917a12ef95852a9fc4e092e45a31`  
+SendrPay: `0x2b0d2f1dec9ab3e06668145d21ed17715e288350`  
+USDC: `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` · USDm: `0x765DE816845861e75A25fCA122bb6898B8B1282a`  
+[Sourcify](https://sourcify.dev/server/repo-ui/42220/0x2b0d2f1dec9ab3e06668145d21ed17715e288350) · [CeloScan](https://celoscan.io/address/0x2b0d2f1dec9ab3e06668145d21ed17715e288350)
+
 ## Monad contract deployment
 UsernameRegistry: 0x1264e8ab9e98e2575856b831e606af43bac0fe65,
     GroupRegistry: 0x5008a18adc0f828d1057fb5af7ad9599ff67f62c,

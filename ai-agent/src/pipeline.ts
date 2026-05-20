@@ -167,18 +167,23 @@ async function maybeUsdcReadinessBlock(
   };
 }
 
-function encodeTxPlan(plan: DraftTxPlan) {
+function encodeTxPlan(plan: DraftTxPlan, token: `0x${string}`) {
   switch (plan.mode) {
     case "pay":
       return [
         encodedCallToJson(
-          encodePay(plan.to as `0x${string}`, BigInt(plan.amountBaseUnits)),
+          encodePay(
+            token,
+            plan.to as `0x${string}`,
+            BigInt(plan.amountBaseUnits),
+          ),
         ),
       ];
     case "payGroupEqual":
       return [
         encodedCallToJson(
           encodePayGroupEqual(
+            token,
             BigInt(plan.groupId),
             BigInt(plan.amountPerMemberBaseUnits),
           ),
@@ -187,13 +192,18 @@ function encodeTxPlan(plan: DraftTxPlan) {
     case "payMany":
       return plan.items.map((i) =>
         encodedCallToJson(
-          encodePay(i.to as `0x${string}`, BigInt(i.amountBaseUnits)),
+          encodePay(
+            token,
+            i.to as `0x${string}`,
+            BigInt(i.amountBaseUnits),
+          ),
         ),
       );
     case "payGroupSplit":
       return [
         encodedCallToJson(
           encodePayGroupSplit(
+            token,
             BigInt(plan.groupId),
             BigInt(plan.totalBaseUnits),
           ),
@@ -750,7 +760,7 @@ export async function handleUserMessage(
     setPendingDraft(sessionId, null);
     clearDraft(pending.draftId);
     const meta = await deps.getMeta();
-    const transactions = encodeTxPlan(pending.txPlan);
+    const transactions = encodeTxPlan(pending.txPlan, meta.usdc);
     return {
       type: "tx_ready",
       draftId: pending.draftId,

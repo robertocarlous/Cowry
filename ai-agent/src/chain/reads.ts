@@ -1,5 +1,6 @@
-import type { PublicClient } from "viem";
+import { isAddress, type PublicClient } from "viem";
 import {
+  CELO_USDC,
   groupRegistryContract,
   sendrpayContract,
   userRegistryContract,
@@ -23,15 +24,27 @@ export async function isWalletRegisteredOnChain(
   return hash !== ZERO_HASH;
 }
 
+/** Default payment token (USDC). Set USDC_ADDRESS in .env; must be whitelisted on SendrPay. */
 export async function readUsdcAddress(
   client: PublicClient,
 ): Promise<`0x${string}`> {
-  const addr = await client.readContract({
+  const fromEnv = process.env.USDC_ADDRESS?.trim();
+  const candidate = (
+    fromEnv && isAddress(fromEnv) ? fromEnv : CELO_USDC
+  ) as `0x${string}`;
+
+  const supported = await client.readContract({
     address: sendrpayContract.address,
     abi: sendrpayContract.abi,
-    functionName: "usdc",
+    functionName: "supportedTokens",
+    args: [candidate],
   });
-  return addr as `0x${string}`;
+  if (!supported) {
+    throw new Error(
+      `Token ${candidate} is not whitelisted on SendrPay at ${sendrpayContract.address}`,
+    );
+  }
+  return candidate;
 }
 
 export async function resolveUsernameOnChain(

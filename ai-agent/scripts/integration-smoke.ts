@@ -3,7 +3,7 @@
  *
  * Usage:
  *   cp .env.example .env
- *   # set MONAD_RPC_URL (or RPC_URL), optionally CHAIN_ID, INTEGRATION_*
+ *   # set CELO_RPC_URL, MONAD_RPC_URL, or RPC_URL; CHAIN_ID (42220 Celo, 10143 Monad testnet)
  *   npm run test:integration
  *
  * Optional:
@@ -24,15 +24,18 @@ import { createResolutionDeps } from "../src/deps/createDeps.js";
 
 async function main() {
   const rpc =
-    process.env.MONAD_RPC_URL?.trim() || process.env.RPC_URL?.trim() || "";
+    process.env.CELO_RPC_URL?.trim() ||
+    process.env.MONAD_RPC_URL?.trim() ||
+    process.env.RPC_URL?.trim() ||
+    "";
   if (!rpc) {
     console.error(
-      "Missing MONAD_RPC_URL or RPC_URL. Add one to .env for chain integration.",
+      "Missing CELO_RPC_URL, MONAD_RPC_URL, or RPC_URL. Add one to .env for chain integration.",
     );
     process.exit(1);
   }
 
-  const chainId = Number(process.env.CHAIN_ID || 10143);
+  const chainId = Number(process.env.CHAIN_ID || 42220);
   console.log("— Chain reads —");
   console.log("RPC:", rpc.slice(0, 48) + (rpc.length > 48 ? "…" : ""));
   console.log("CHAIN_ID:", chainId);

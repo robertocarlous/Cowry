@@ -15,7 +15,7 @@ import { normalizeUsernameForRegistry } from "../chain/normalizeUsername.js";
 import type { EncodedTxJson, ResolutionDeps, TxMeta } from "./types.js";
 
 export function createChainResolutionDeps(rpcUrl: string): ResolutionDeps {
-  const chainId = Number(process.env.CHAIN_ID || 10143);
+  const chainId = Number(process.env.CHAIN_ID || 42220);
   const client = makePublicClient(rpcUrl, chainId);
 
   return {
