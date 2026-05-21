@@ -53,10 +53,10 @@ if (current.registered) {
 console.log("⏳  Initiating registration with Self Protocol...");
 
 const session = await requestRegistration({
-  mode: "verified-wallet",
+  mode: "linked",          // formerly "verified-wallet" — links wallet address as agent identity
   network: "mainnet",
   humanAddress: account.address,
-  agentName: "CowryPay AI Agent",
+  agentName: "Cowry AI Agent",
   disclosures: { ofac: true },
 });
 

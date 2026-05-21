@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DraftRecord, DraftTxPlan, ParsedIntent } from "./schemas.js";
+import { createGroqClient, generateChatReply } from "./llm.js";
 import { encodeErc20Approve } from "./chain/encodeErc20.js";
 import {
   encodeAddMember,
@@ -517,6 +518,7 @@ export async function adminFromIntent(
   intent: ParsedIntent,
   deps: ResolutionDeps,
   wallet: `0x${string}` | undefined,
+  rawText?: string,
 ): Promise<AdminIntentResult> {
   if (intent.kind !== "admin") {
     return { kind: "clarify", question: "Not an admin command." };
@@ -714,6 +716,24 @@ export async function adminFromIntent(
       transactions: res.transactions,
     };
   }
+  if (intent.action === "CHAT") {
+    // General conversational message — use LLM to reply naturally
+    const llm = createGroqClient();
+    if (llm) {
+      try {
+        const reply = await generateChatReply(llm, rawText ?? "Hello");
+        return { kind: "info", message: reply };
+      } catch {
+        // fall through to default
+      }
+    }
+    return {
+      kind: "info",
+      message:
+        "Hi! I'm Cowry — your AI payment assistant on Celo.\n\nTry: **send 10 USDm to @alice**, **list my groups**, **my balance**, or say **help** for all commands.",
+    };
+  }
+
   return { kind: "clarify", question: "Unknown admin command." };
 }
 
@@ -1005,21 +1025,23 @@ export async function handleUserMessage(
   const intent = await parseFn(t);
 
   if (intent.kind === "unknown") {
-    if (/^(hi|hello|hey|start|good\s+morning)\b/i.test(t)) {
-      return {
-        type: "info",
-        message: await buildWelcomeMessage(deps, walletAddress),
-      };
+    // Try conversational LLM reply before showing the fallback error
+    const llm = createGroqClient();
+    if (llm) {
+      try {
+        const reply = await generateChatReply(llm, t);
+        return { type: "info", message: reply };
+      } catch { /* fall through */ }
     }
     return {
       type: "clarify",
       question:
-        "I did not understand. Try **register as yourname**, **send $20 to @alice**, **earn yield on my USDC**, or say **help**.",
+        "I didn't quite get that. Try **send $20 to @alice**, **list my groups**, **my balance**, or say **help** for all commands.",
     };
   }
 
   if (intent.kind === "admin") {
-    const a = await adminFromIntent(intent, deps, walletAddress);
+    const a = await adminFromIntent(intent, deps, walletAddress, t);
     if (a.kind === "clarify") {
       return { type: "clarify", question: a.question };
     }
