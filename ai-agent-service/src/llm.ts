@@ -20,7 +20,9 @@ const SYSTEM = `You are Cowry's intent parser. Output ONLY valid JSON matching t
 - Deposit into a vault (pick by number): {"kind":"earn","action":"DEPOSIT_YIELD","amount":number,"vaultIndex":number}
 - Deposit (no vault specified): {"kind":"earn","action":"DEPOSIT_YIELD","amount":number,"vaultIndex":1}
 - Show yield positions / what am I earning / my Morpho balance: {"kind":"earn","action":"VIEW_POSITIONS"}
-- Balance / how much do I have / my transactions / greetings / general chat / questions about Cowry: {"kind":"admin","action":"CHAT"}
+- Check balance / how much do I have / my USDm balance / my USDC balance: {"kind":"admin","action":"BALANCE"}
+- My transactions / transaction history / recent payments: {"kind":"admin","action":"BALANCE"}
+- Greetings / general chat / questions about Cowry: {"kind":"admin","action":"CHAT"}
 
 Rules: amounts are tokens (user may say dollars or $ — use the number). Usernames: a–z 0–9 only, 3–32 chars, no @ in JSON. Unclear payment amounts → ask. For earn: vaultIndex is 1-based integer.`;
 

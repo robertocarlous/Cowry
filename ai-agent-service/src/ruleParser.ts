@@ -49,12 +49,7 @@ export function ruleParse(message: string): ParsedIntent | null {
 
   // BALANCE: "my balance", "balance", "how much do I have", "check balance"
   if (/^(my\s+)?balance\s*\.?$/i.test(lower) || /\bcheck\s+(my\s+)?balance\b/i.test(lower) || /\bhow\s+much\s+(do\s+i\s+have|usdc|usdm)\b/i.test(lower)) {
-    return { kind: "admin", action: "CHAT" };
-  }
-
-  // TX_HISTORY: "my transactions", "transaction history", "recent payments"
-  if (/\bmy\s+transactions?\b/i.test(lower) || /\btransaction\s+history\b/i.test(lower) || /\brecent\s+payments?\b/i.test(lower)) {
-    return { kind: "admin", action: "CHAT" };
+    return { kind: "admin", action: "BALANCE" };
   }
 
   // Greetings → welcome message

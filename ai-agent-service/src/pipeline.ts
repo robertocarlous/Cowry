@@ -7,6 +7,7 @@ import {
   encodeCancelGroup,
   encodeRemoveMember,
 } from "./chain/encodeGroupRegistry.js";
+import { readErc20Balance } from "./chain/erc20Reads.js";
 import {
   encodePay,
   encodePayGroupEqual,
@@ -716,6 +717,41 @@ export async function adminFromIntent(
       transactions: res.transactions,
     };
   }
+  if (intent.action === "BALANCE") {
+    if (!wallet) {
+      return {
+        kind: "info",
+        message: "Pass **walletAddress** in the request to check your balance.",
+      };
+    }
+    if (deps.mode !== "chain" || !deps.publicClient) {
+      return { kind: "info", message: "Balance check requires an RPC connection (mock mode)." };
+    }
+    try {
+      const USDM  = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as `0x${string}`;
+      const USDC  = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C" as `0x${string}`;
+      const [usdmRaw, usdcRaw] = await Promise.all([
+        readErc20Balance(deps.publicClient, USDM, wallet),
+        readErc20Balance(deps.publicClient, USDC, wallet),
+      ]);
+      const usdm = (Number(usdmRaw) / 1e18).toFixed(4);
+      const usdc = (Number(usdcRaw) / 1e6).toFixed(4);
+      return {
+        kind: "info",
+        message:
+          `💳 **Balance for ${wallet.slice(0, 6)}…${wallet.slice(-4)}**\n\n` +
+          `• **USDm:** ${Number(usdm).toLocaleString()} USDm\n` +
+          `• **USDC:** ${Number(usdc).toLocaleString()} USDC\n\n` +
+          `_Network: Celo Mainnet_`,
+      };
+    } catch (e) {
+      return {
+        kind: "clarify",
+        question: `Could not fetch balance: ${e instanceof Error ? e.message : String(e)}`,
+      };
+    }
+  }
+
   if (intent.action === "CHAT") {
     // General conversational message — use LLM to reply naturally
     const llm = createGroqClient();
