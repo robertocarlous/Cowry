@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently -k -n agent,next -c cyan,green \"npm run agent\" \"next dev\"",
+    "dev:next": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "agent": "tsx ../ai-agent-service/src/index.ts",
-    "dev:all": "concurrently -n agent,next -c cyan,green \"npm run agent\" \"npm run dev\""
+    "agent": "cd ../ai-agent-service && tsx src/index.ts"
   },
   "dependencies": {
     "next": "14.2.5",
