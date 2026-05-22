@@ -1,22 +1,33 @@
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const agentSrc = path.resolve(__dirname, "../ai-agent-service/src");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Required for MiniPay — disable strict mode to avoid double-effects
-  // triggering wallet connections twice
   reactStrictMode: false,
-  // viem is ESM-only; webpack needs to transpile it for client bundles
-  transpilePackages: ["viem"],
+  // viem + openai are ESM-only — webpack must transpile them for client bundles
+  transpilePackages: ["viem", "openai"],
 
-  // Proxy /api/* to the AI agent service so the frontend only needs one origin.
-  // Set NEXT_PUBLIC_AGENT_URL in .env.local to override (e.g. a hosted backend).
-  async rewrites() {
-    const agentOrigin = process.env.AGENT_INTERNAL_URL ?? "http://localhost:3001";
-    return [
-      {
-        source:      "/api/:path*",
-        destination: `${agentOrigin}/:path*`,
-      },
-    ];
+  webpack(config) {
+    // Allow  import { x } from "./file.js"  to resolve  ./file.ts
+    // (the ESM/NodeNext convention used by ai-agent-service)
+    config.resolve.extensionAlias = {
+      ".js":  [".ts", ".tsx", ".js"],
+      ".mjs": [".mts", ".mjs"],
+    };
+
+    // @agent/* → ai-agent-service/src/*  (clean import alias for API routes)
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@agent": agentSrc,
+    };
+
+    return config;
   },
+
+  // No proxy rewrite needed — API routes are built directly into Next.js
 };
 
 export default nextConfig;

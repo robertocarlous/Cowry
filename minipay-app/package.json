@@ -3,18 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -k -n agent,next -c cyan,green \"npm run agent\" \"next dev\"",
-    "dev:next": "next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "agent": "cd ../ai-agent-service && tsx src/index.ts"
+    "lint": "next lint"
   },
   "dependencies": {
+    "@selfxyz/agent-sdk": "^0.2.1",
     "next": "14.2.5",
+    "openai": "^6.39.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "viem": "^2.47.12"
+    "viem": "^2.47.12",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22",
