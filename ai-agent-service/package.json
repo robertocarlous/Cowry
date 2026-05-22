@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@privy-io/server-auth": "^1.32.5",
-    "@selfxyz/agent-sdk": "^0.1.1",
+    "@selfxyz/agent-sdk": "^0.2.1",
     "dotenv": "^16.4.5",
     "ethers": "^6.16.0",
     "express": "^4.21.0",
