@@ -33,6 +33,39 @@ export function isMiniPay(): boolean {
   return !!(getProvider()?.isMiniPay);
 }
 
+/**
+ * Wait for window.ethereum to be injected (MiniPay may inject after page load).
+ * Listens for the standard `ethereum#initialized` event and falls back to polling.
+ * Resolves true when ready, false if it never appears within timeoutMs.
+ */
+export function waitForProvider(timeoutMs = 3000): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (getProvider()) return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (result: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(poll);
+      clearTimeout(timer);
+      window.removeEventListener("ethereum#initialized", onInit);
+      resolve(result);
+    };
+
+    const onInit = () => done(true);
+    window.addEventListener("ethereum#initialized", onInit, { once: true });
+
+    // Poll every 100 ms as a fallback (some wallets don't emit the event)
+    const poll = setInterval(() => {
+      if (getProvider()) done(true);
+    }, 100);
+
+    // Give up after timeoutMs
+    const timer = setTimeout(() => done(false), timeoutMs);
+  });
+}
+
 export function getWalletClient() {
   const provider = getProvider();
   if (!provider) return null;
