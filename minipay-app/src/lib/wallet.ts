@@ -14,6 +14,20 @@ function getProvider(): EthereumProvider | null {
   return (window as unknown as { ethereum?: EthereumProvider }).ethereum ?? null;
 }
 
+/**
+ * Returns the Ethereum provider or throws a clear error.
+ * Use this before any wallet operation that MUST succeed.
+ */
+export function requireProvider(): EthereumProvider {
+  const p = getProvider();
+  if (!p) {
+    throw new Error(
+      "No Ethereum wallet found. Please open this app inside MiniPay or a Web3 browser.",
+    );
+  }
+  return p;
+}
+
 /** Returns true when the app is running inside the MiniPay wallet */
 export function isMiniPay(): boolean {
   return !!(getProvider()?.isMiniPay);

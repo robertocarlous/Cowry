@@ -8,6 +8,7 @@ import {
   switchToCelo,
   shortAddress,
 } from "@/lib/wallet";
+import { useRef } from "react";
 import { resolveUsername, setCachedUsername } from "@/lib/registry";
 
 type RegistrationState = "unknown" | "checking" | "unregistered" | "registered";
@@ -19,6 +20,10 @@ export function useWallet() {
   const [inMiniPay,    setInMiniPay]    = useState(false);
   const [loading,      setLoading]      = useState(true);
   const [wrongChain,   setWrongChain]   = useState(false);
+  const [walletError,  setWalletError]  = useState<string | null>(null);
+
+  // Prevent duplicate auto-connect attempts (MiniPay docs requirement)
+  const hasAttempted = useRef(false);
 
   const checkRegistration = useCallback(async (addr: `0x${string}`) => {
     setRegState("checking");
@@ -51,20 +56,31 @@ export function useWallet() {
 
   useEffect(() => {
     const init = async () => {
-      setInMiniPay(isMiniPay());
-      const addr = await getConnectedAddress();
-      if (addr) {
-        setAddress(addr);
-        // Check chain first — auto-switch silently on page load
-        const chainId = await getCurrentChainId();
-        if (chainId !== 42220 && !isMiniPay()) {
-          try { await switchToCelo(); } catch { setWrongChain(true); }
+      // Guard: only attempt auto-connect once (MiniPay docs requirement)
+      if (hasAttempted.current) return;
+      hasAttempted.current = true;
+
+      const miniPay = isMiniPay();
+      setInMiniPay(miniPay);
+
+      try {
+        const addr = await getConnectedAddress();
+        if (addr) {
+          setAddress(addr);
+          const chainId = await getCurrentChainId();
+          if (chainId !== 42220 && !miniPay) {
+            try { await switchToCelo(); } catch { setWrongChain(true); }
+          }
+          await checkRegistration(addr);
+        } else if (miniPay) {
+          // Inside MiniPay — auto-connect is required, no user prompt
+          await connect();
         }
-        await checkRegistration(addr);
-      } else if (isMiniPay()) {
-        await connect();
+      } catch (e) {
+        setWalletError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     init();
 
@@ -119,6 +135,7 @@ export function useWallet() {
     shortAddress:  address ? shortAddress(address) : null,
     inMiniPay,
     loading,
+    walletError,
     connect,
     onRegistered,
     ensureCelo,

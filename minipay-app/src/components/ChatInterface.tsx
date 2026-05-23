@@ -20,7 +20,7 @@ const SUGGESTIONS = [
 export function ChatInterface() {
   const {
     address, username, shortAddress, inMiniPay,
-    loading: walletLoading, connect, onRegistered,
+    loading: walletLoading, walletError, connect, onRegistered,
     ensureCelo, wrongChain, isConnected, isRegistered, isChecking,
   } = useWallet();
 
@@ -85,6 +85,9 @@ export function ChatInterface() {
         )}
         {inMiniPay && (
           <p className="text-xs text-cowry-muted animate-pulse">Connecting to MiniPay…</p>
+        )}
+        {walletError && (
+          <p className="text-xs text-red-400 text-center max-w-xs">{walletError}</p>
         )}
         <Link href="/" className="text-xs text-cowry-muted hover:text-white transition-colors underline underline-offset-2">
           ← Back to homepage
