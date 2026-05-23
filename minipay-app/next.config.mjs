@@ -18,6 +18,10 @@ const nextConfig = {
       ...config.resolve.alias,
       "@agent": agentSrc,
     };
+    // Suppress "Critical dependency: expression in require()" warning from ox/tempo
+    // (used internally by viem's tempo chain definition — not used by Cowry)
+    config.module.exprContextCritical = false;
+
     return config;
   },
 };
