@@ -6,5 +6,11 @@ export const runtime = "nodejs";
 const deps = createResolutionDeps();
 
 export function GET() {
-  return NextResponse.json({ ok: true, mode: deps.mode });
+  if (deps.mode === "chain") {
+    return NextResponse.json({ ok: true, mode: deps.mode });
+  }
+  return NextResponse.json(
+    { ok: false, mode: deps.mode, reason: deps.reason },
+    { status: 503 },
+  );
 }

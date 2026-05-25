@@ -15,12 +15,6 @@ export type ResolveGroupResult =
       displayName: string;
       members: `0x${string}`[];
     }
-  | {
-      ok: true;
-      kind: "mock";
-      displayName: string;
-      members: { username: string; address: `0x${string}` }[];
-    }
   | { ok: false; reason: string };
 
 export type TxMeta = {
@@ -30,7 +24,8 @@ export type TxMeta = {
 };
 
 export type ResolutionDeps = {
-  mode: "mock" | "chain";
+  mode: "chain" | "unavailable";
+  reason?: string;
   publicClient: PublicClient | null;
   /** Whether this wallet already claimed a Cowry username on-chain / in mock. */
   isWalletRegistered(wallet: `0x${string}` | undefined): Promise<boolean>;

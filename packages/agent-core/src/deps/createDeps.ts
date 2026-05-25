@@ -1,11 +1,11 @@
-import { createDefaultRegistry } from "../resolvers.js";
 import { createChainResolutionDeps } from "./chainResolution.js";
-import { createMockResolutionDeps } from "./mockResolution.js";
+import { createUnavailableResolutionDeps } from "./unavailableResolution.js";
 import type { ResolutionDeps } from "./types.js";
 
 /**
  * If CELO_RPC_URL or RPC_URL is set, uses on-chain UsernameRegistry + GroupRegistry reads.
- * Otherwise uses the in-memory mock registry (tests / offline).
+ * Otherwise returns an explicit unavailable state so deployments never silently
+ * fall back to fake usernames/groups.
  */
 export function createResolutionDeps(): ResolutionDeps {
   const rpc =
@@ -13,5 +13,7 @@ export function createResolutionDeps(): ResolutionDeps {
   if (rpc) {
     return createChainResolutionDeps(rpc);
   }
-  return createMockResolutionDeps(createDefaultRegistry());
+  return createUnavailableResolutionDeps(
+    "Celo RPC is not configured for username/group resolution.",
+  );
 }
