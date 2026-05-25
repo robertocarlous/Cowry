@@ -95,6 +95,9 @@ async function buildWelcomeMessage(deps, wallet) {
     const lines = [
         "Welcome to **Cowry**."
     ];
+    if (deps.mode === "unavailable" && deps.reason) {
+        lines.push("", `**On-chain usernames are unavailable right now**: ${deps.reason}`);
+    }
     if (deps.mode === "chain" && wallet && !await deps.isWalletRegistered(wallet)) {
         lines.push("", "**Your wallet does not have a Cowry name yet** — register before sending.");
     }
@@ -274,37 +277,9 @@ export async function paymentFromIntent(intent, deps, wallet) {
                 }
             };
         }
-        const recipients = g.members.map((m)=>({
-                username: m.username,
-                address: m.address,
-                amount: per
-            }));
-        const policy = policyCheck(recipients);
-        if (policy) return {
-            ok: false,
-            question: policy
-        };
-        const preview = buildPreviewLines(recipients, tokenSymbol);
-        const items = recipients.map((r)=>({
-                to: r.address,
-                amountHuman: per,
-                amountBaseUnits: perBase.toString()
-            }));
-        const txPlan = {
-            mode: "payMany",
-            token: tokenAddress,
-            items
-        };
-        const totalAmount = per * recipients.length;
         return {
-            ok: true,
-            draft: {
-                action: "SEND_TO_GROUP",
-                recipients,
-                totalAmount,
-                preview,
-                txPlan
-            }
+            ok: false,
+            question: "Group resolution returned an unsupported result."
         };
     }
     if (intent.action === "GROUP_SPLIT_TOTAL") {
@@ -342,13 +317,15 @@ export async function paymentFromIntent(intent, deps, wallet) {
         const totalBase = toBaseUnits(total, tokenInfo.decimals);
         const n = g.members.length;
         const shares = splitEqualShares(total, n, tokenInfo.decimals);
-        const recipients = g.kind === "onchain" ? g.members.map((addr, i)=>({
+        if (g.kind !== "onchain") {
+            return {
+                ok: false,
+                question: "Group resolution returned an unsupported result."
+            };
+        }
+        const recipients = g.members.map((addr, i)=>({
                 username: shortAddr(addr),
                 address: addr,
-                amount: shares[i].human
-            })) : g.members.map((m, i)=>({
-                username: m.username,
-                address: m.address,
                 amount: shares[i].human
             }));
         const policy = policyCheck(recipients);
@@ -513,7 +490,7 @@ export async function adminFromIntent(intent, deps, wallet, rawText) {
         if (deps.mode !== "chain") {
             return {
                 kind: "info",
-                message: "Mock mode has no USDm/USDC on-chain. With **CELO_RPC_URL** set, **approve 500 usdm for cowry** returns **USDm.approve(CowryPay, …)** calldata."
+                message: deps.reason ?? "Celo RPC is not configured. Set **CELO_RPC_URL** (or **RPC_URL**) so Cowry can build on-chain approval transactions."
             };
         }
         if (!wallet) {
