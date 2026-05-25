@@ -3,9 +3,8 @@ import { fileURLToPath } from "url";
 import { existsSync, readFileSync } from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const agentSrc = path.resolve(__dirname, "../ai-agent-service/src");
 
-// Bridge/chat API routes import @agent code in the Next.js process — not the agent server on :3001.
+// Bridge/chat API routes import the shared agent core package in-process.
 // Pull shared secrets (LIFI_API_KEY, GROQ_API_KEY, etc.) from ai-agent-service/.env when missing locally.
 const agentEnvPath = path.resolve(__dirname, "../ai-agent-service/.env");
 if (existsSync(agentEnvPath)) {
@@ -29,22 +28,9 @@ if (existsSync(agentEnvPath)) {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-  transpilePackages: ["viem", "openai"],
+  transpilePackages: ["@cowry/agent-core", "viem", "openai"],
 
   webpack(config, { isServer }) {
-    // Only on the server: map @agent/*.js imports to TypeScript sources.
-    // Applying extensionAlias on the client breaks viem's internal .js modules
-    // (webpack_require.n is not a function in ChatInterface → wallet → viem).
-    if (isServer) {
-      config.resolve.extensionAlias = {
-        ".js":  [".ts", ".tsx", ".js"],
-        ".mjs": [".mts", ".mjs"],
-      };
-    }
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@agent": agentSrc,
-    };
     // Suppress "Critical dependency: expression in require()" warning from ox/tempo
     // (used internally by viem's tempo chain definition — not used by Cowry)
     config.module.exprContextCritical = false;

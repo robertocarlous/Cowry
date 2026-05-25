@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@cowry/agent-core": "file:../packages/agent-core/cowry-agent-core-0.1.0.tgz",
     "@selfxyz/agent-sdk": "^0.2.1",
     "next": "14.2.5",
     "openai": "^6.39.0",

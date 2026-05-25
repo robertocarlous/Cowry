@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAddress } from "viem";
-import { handleUserMessage } from "@agent/pipeline.js";
-import { createResolutionDeps } from "@agent/deps/createDeps.js";
-import { createMessageParser } from "@agent/parseMessage.js";
+import { handleUserMessage } from "@cowry/agent-core/pipeline.js";
+import { createResolutionDeps } from "@cowry/agent-core/deps/createDeps.js";
+import { createMessageParser } from "@cowry/agent-core/parseMessage.js";
 
 // Singletons — initialised once per cold start, reused across requests
 const deps        = createResolutionDeps();

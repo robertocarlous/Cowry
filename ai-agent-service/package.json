@@ -14,6 +14,7 @@
     "register:agent": "tsx scripts/register-self-agent.ts"
   },
   "dependencies": {
+    "@cowry/agent-core": "file:../packages/agent-core/cowry-agent-core-0.1.0.tgz",
     "@privy-io/server-auth": "^1.32.5",
     "@selfxyz/agent-sdk": "^0.2.1",
     "dotenv": "^16.4.5",

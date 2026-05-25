@@ -20,7 +20,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { createPublicClient, http } from "viem";
 import { celo } from "viem/chains";
 import { requestRegistration } from "@selfxyz/agent-sdk";
-import { getAgentIdStatus, SELF_AGENT_REGISTRY } from "../src/agent/selfId.js";
+import { getAgentIdStatus, SELF_AGENT_REGISTRY } from "@cowry/agent-core/agent/selfId.js";
 
 const POLL_TIMEOUT_MS = 30 * 60 * 1_000; // match Self API default session TTL
 

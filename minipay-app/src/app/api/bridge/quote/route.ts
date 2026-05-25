@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, erc20Abi, http, isAddress } from "viem";
 import { celo } from "viem/chains";
 import { loadAgentEnv } from "@/lib/loadAgentEnv";
-import { getBridgeQuote, formatBridgeSummary } from "@agent/lifi/bridgeClient.js";
+import { getBridgeQuote, formatBridgeSummary } from "@cowry/agent-core/lifi/bridgeClient.js";
 
 loadAgentEnv();
 

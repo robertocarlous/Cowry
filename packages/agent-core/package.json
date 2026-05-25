@@ -1,0 +1,50 @@
+{
+  "name": "@cowry/agent-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "import": "./dist/*.js",
+      "default": "./dist/*.js"
+    },
+    "./agent/*.js": {
+      "types": "./src/agent/*.ts",
+      "import": "./dist/agent/*.js",
+      "default": "./dist/agent/*.js"
+    },
+    "./chain/*.js": {
+      "types": "./src/chain/*.ts",
+      "import": "./dist/chain/*.js",
+      "default": "./dist/chain/*.js"
+    },
+    "./deps/*.js": {
+      "types": "./src/deps/*.ts",
+      "import": "./dist/deps/*.js",
+      "default": "./dist/deps/*.js"
+    },
+    "./lifi/*.js": {
+      "types": "./src/lifi/*.ts",
+      "import": "./dist/lifi/*.js",
+      "default": "./dist/lifi/*.js"
+    }
+  },
+  "dependencies": {
+    "openai": "^4.73.0",
+    "viem": "^2.47.12",
+    "zod": "^3.23.8"
+  }
+}

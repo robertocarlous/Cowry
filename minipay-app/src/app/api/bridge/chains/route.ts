@@ -3,7 +3,7 @@ import { loadAgentEnv } from "@/lib/loadAgentEnv";
 import {
   getCeloBridgeSource,
   getCeloOutboundDestinations,
-} from "@agent/lifi/bridgeClient.js";
+} from "@cowry/agent-core/lifi/bridgeClient.js";
 
 export const runtime = "nodejs";
 

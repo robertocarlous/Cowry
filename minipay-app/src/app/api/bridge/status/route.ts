@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { loadAgentEnv } from "@/lib/loadAgentEnv";
-import { getBridgeStatus } from "@agent/lifi/bridgeClient.js";
+import { getBridgeStatus } from "@cowry/agent-core/lifi/bridgeClient.js";
 
 loadAgentEnv();
 

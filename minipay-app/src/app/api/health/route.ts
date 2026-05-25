@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createResolutionDeps } from "@agent/deps/createDeps.js";
+import { createResolutionDeps } from "@cowry/agent-core/deps/createDeps.js";
 
 export const runtime = "nodejs";
 

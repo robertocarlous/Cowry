@@ -13,14 +13,14 @@
  */
 import "dotenv/config";
 import { isAddress } from "viem";
-import { makePublicClient } from "../src/chain/client.js";
+import { makePublicClient } from "@cowry/agent-core/chain/client.js";
 import {
   formatGroupsLinesForWallet,
   isWalletRegisteredOnChain,
   readUsdcAddress,
   resolveUsernameOnChain,
-} from "../src/chain/reads.js";
-import { createResolutionDeps } from "../src/deps/createDeps.js";
+} from "@cowry/agent-core/chain/reads.js";
+import { createResolutionDeps } from "@cowry/agent-core/deps/createDeps.js";
 
 async function main() {
   const rpc =

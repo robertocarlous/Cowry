@@ -1,4 +1,4 @@
-// ── Agent API types (mirrors ai-agent-service/src/types.ts) ──────────────────
+// ── Agent API types (mirrors @cowry/agent-core/types.js) ─────────────────────
 
 export type EncodedTxJson = {
   to: string;

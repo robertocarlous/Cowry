@@ -1,19 +1,19 @@
 import "dotenv/config";
 import express, { type Request, type Response } from "express";
 import { isAddress, isHash } from "viem";
-import { createResolutionDeps } from "./deps/createDeps.js";
-import { handleUserMessage } from "./pipeline.js";
-import { createMessageParser } from "./parseMessage.js";
-import { fetchTxReceiptStatus } from "./txStatus.js";
-import { getAgentWallet } from "./agent/wallet.js";
-import { getAgentIdStatus } from "./agent/selfId.js";
+import { createResolutionDeps } from "@cowry/agent-core/deps/createDeps.js";
+import { handleUserMessage } from "@cowry/agent-core/pipeline.js";
+import { createMessageParser } from "@cowry/agent-core/parseMessage.js";
+import { fetchTxReceiptStatus } from "@cowry/agent-core/txStatus.js";
+import { getAgentWallet } from "@cowry/agent-core/agent/wallet.js";
+import { getAgentIdStatus } from "@cowry/agent-core/agent/selfId.js";
 import {
   getBridgeQuote,
   getBridgeStatus,
   formatBridgeSummary,
   getCeloBridgeSource,
   getCeloOutboundDestinations,
-} from "./lifi/bridgeClient.js";
+} from "@cowry/agent-core/lifi/bridgeClient.js";
 
 const app = express();
 app.use(express.json());

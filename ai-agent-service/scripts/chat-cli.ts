@@ -1,9 +1,9 @@
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { isAddress } from "viem";
-import { createResolutionDeps } from "../src/deps/createDeps.js";
-import { handleUserMessage } from "../src/pipeline.js";
-import { createMessageParser } from "../src/parseMessage.js";
+import { createResolutionDeps } from "@cowry/agent-core/deps/createDeps.js";
+import { handleUserMessage } from "@cowry/agent-core/pipeline.js";
+import { createMessageParser } from "@cowry/agent-core/parseMessage.js";
 
 async function main() {
   const deps = createResolutionDeps();

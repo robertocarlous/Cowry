@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isHash, createPublicClient, http } from "viem";
 import { celo } from "viem/chains";
-import { fetchTxReceiptStatus } from "@agent/txStatus.js";
+import { fetchTxReceiptStatus } from "@cowry/agent-core/txStatus.js";
 
 export const runtime = "nodejs";
 
