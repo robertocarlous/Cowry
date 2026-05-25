@@ -2,7 +2,7 @@
 
 > **Send money as easily as sending a message.**
 
-Cowry is a WhatsApp-style AI-powered payment application built on the blockchain. It eliminates the complexity of traditional crypto payments by letting users send funds, manage groups, and automate financial actions through simple, natural language commands — no wallet addresses, no confusing interfaces, just conversation.
+Cowry is an AI-powered payment application built on the blockchain. It eliminates the complexity of traditional crypto payments by letting users send funds, manage groups, and automate financial actions through simple, natural language commands — no wallet addresses, no confusing interfaces, just conversation.
 
 ---
 
@@ -25,8 +25,6 @@ Cowry is a WhatsApp-style AI-powered payment application built on the blockchain
 
 ---
 
-## Demo Video
-https://drive.google.com/file/d/1Hu-T1Ef_0FCUVetr5JuEiEP7RYdGUMCl/view?usp=drivesdk
 
 ## Celo mainnet deployment (chainId 42220)
 UsernameRegistry: `0x3b89d7b4997db5645db2829523ed3e79e55a0f02`  
@@ -35,18 +33,6 @@ CowryPay: `0x2b0d2f1dec9ab3e06668145d21ed17715e288350`
 USDC: `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` · USDm: `0x765DE816845861e75A25fCA122bb6898B8B1282a`  
 [Sourcify](https://sourcify.dev/server/repo-ui/42220/0x2b0d2f1dec9ab3e06668145d21ed17715e288350) · [CeloScan](https://celoscan.io/address/0x2b0d2f1dec9ab3e06668145d21ed17715e288350)
 
-## Monad contract deployment
-UsernameRegistry: 0x1264e8ab9e98e2575856b831e606af43bac0fe65,
-    GroupRegistry: 0x5008a18adc0f828d1057fb5af7ad9599ff67f62c,
-    CowryPay: 0x6602f2ee7b05cc382e654bcafbb692bd813f9efa
-
-## BNB contract deployment
-UsernameRegistry
-0x1264e8ab9e98e2575856b831e606af43bac0fe65
-GroupRegistry
-0x5008a18adc0f828d1057fb5af7ad9599ff67f62c
-CowryPay
-0x6602f2ee7b05cc382e654bcafbb692bd813f9efa
 
 ## The Problem
 
@@ -98,7 +84,7 @@ This system solves one of the most fundamental UX problems in crypto: you no lon
 
 ### 3. AI Chat Interface
 
-The core of Cowry is a WhatsApp-style chat interface powered by an AI agent. Users interact with the AI entirely in natural language — no menus, no forms, no complicated flows.
+The core of Cowry is a chat interface powered by an AI agent. Users interact with the AI entirely in natural language — no menus, no forms, no complicated flows.
 
 The AI is capable of:
 - Understanding the **intent** behind a message ("send", "split", "create group", "automate")
