@@ -10,6 +10,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { privateKeyToAccount } from "viem/accounts";
 import { network } from "hardhat";
 
 import {
@@ -44,7 +45,15 @@ const initialTokens: `0x${string}`[] = [CELO_USDM_ADDRESS, CELO_USDC_ADDRESS];
 // The agent wallet (AGENT_PRIVATE_KEY) is registered as an operator at deploy time.
 // It will be able to call payOnBehalf / payGroupEqualOnBehalf / payGroupSplitOnBehalf.
 // Additional operators can be added later via CowryPay.setOperator(addr, true) by the owner.
-const agentAddress = process.env.AGENT_ADDRESS?.trim() as `0x${string}` | undefined;
+function resolveAgentAddress(): `0x${string}` | undefined {
+  const explicit = process.env.AGENT_ADDRESS?.trim();
+  if (explicit?.startsWith("0x")) return explicit as `0x${string}`;
+  const pk = process.env.AGENT_PRIVATE_KEY?.trim();
+  if (pk?.startsWith("0x")) return privateKeyToAccount(pk as `0x${string}`).address;
+  return undefined;
+}
+
+const agentAddress = resolveAgentAddress();
 const initialOperators: `0x${string}`[] = agentAddress ? [agentAddress] : [];
 
 if (initialOperators.length === 0) {

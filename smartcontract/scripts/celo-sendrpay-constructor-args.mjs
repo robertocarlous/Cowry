@@ -9,8 +9,11 @@ const CELO_USDC = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C";
 const path = join(__dirname, "..", "deployments", "celo-mainnet.json");
 const d = JSON.parse(readFileSync(path, "utf8"));
 
+const initialOperators = d.agentOperator ? [d.agentOperator] : [];
+
 export default [
   [CELO_USDM, CELO_USDC],
+  initialOperators,
   d.contracts.GroupRegistry,
   d.deployer,
 ];

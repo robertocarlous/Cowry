@@ -1,7 +1,7 @@
 /**
  * Verify deployed Cowry contracts on Sourcify (and CeloScan if CELOSCAN_API_KEY is set).
  *
- * Prerequisites: deployments/celo-mainnet.json from deploy-cowry-celo-mainnet.ts
+ * Prerequisites: deployments/celo-mainnet.json from deploy-sendr-celo-mainnet.ts
  *
  * Run: npm run verify:celo-mainnet
  */
