@@ -41,6 +41,20 @@ if (balance < minDeployWei) {
 
 const initialTokens: `0x${string}`[] = [CELO_USDM_ADDRESS, CELO_USDC_ADDRESS];
 
+// The agent wallet (AGENT_PRIVATE_KEY) is registered as an operator at deploy time.
+// It will be able to call payOnBehalf / payGroupEqualOnBehalf / payGroupSplitOnBehalf.
+// Additional operators can be added later via CowryPay.setOperator(addr, true) by the owner.
+const agentAddress = process.env.AGENT_ADDRESS?.trim() as `0x${string}` | undefined;
+const initialOperators: `0x${string}`[] = agentAddress ? [agentAddress] : [];
+
+if (initialOperators.length === 0) {
+  console.warn(
+    "⚠️  AGENT_ADDRESS not set — deploying with no operators. Run setOperator(agentAddr, true) after deploy.",
+  );
+} else {
+  console.log("Agent operator:", agentAddress);
+}
+
 console.log("Network: Celo Mainnet (chainId", String(CELO_MAINNET_CHAIN_ID) + ")");
 console.log("RPC:", rpcUrl);
 console.log("Deployer:", owner);
@@ -48,7 +62,7 @@ console.log("Supported tokens:", initialTokens.join(", "));
 
 const registry = await viem.deployContract("UsernameRegistry", []);
 const groups = await viem.deployContract("GroupRegistry", []);
-const pay = await viem.deployContract("CowryPay", [initialTokens, groups.address, owner]);
+const pay = await viem.deployContract("CowryPay", [initialTokens, initialOperators, groups.address, owner]);
 
 console.log("UsernameRegistry:", registry.address);
 console.log("GroupRegistry:   ", groups.address);
@@ -65,6 +79,7 @@ const artifact = {
     usdc: { address: CELO_USDC_ADDRESS, decimals: 6 },
   },
   deployer: owner,
+  agentOperator: agentAddress ?? null,
   contracts: {
     UsernameRegistry: registry.address,
     GroupRegistry: groups.address,

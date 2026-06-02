@@ -35,7 +35,19 @@ export type ChatResponse =
       };
     }
   | { type: "cancelled"; message: string }
-  | { type: "info"; message: string; transactions?: EncodedTxJson[] };
+  | { type: "info"; message: string; transactions?: EncodedTxJson[] }
+  | {
+      /**
+       * The Cowry AI agent already signed and broadcast the payment on-chain.
+       * The user does NOT need to sign anything.
+       */
+      type: "tx_sent";
+      preview: string;
+      txHash: string;
+      explorerUrl: string;
+      /** Agent wallet address that executed the tx */
+      agentAddress: string;
+    };
 
 // ── UI message model ──────────────────────────────────────────────────────────
 

@@ -200,6 +200,19 @@ export type ChatResponse =
       type: "earn_draft";
       preview: string;
       transactions: EncodedTxJson[];
+    }
+  | {
+      /**
+       * Agent has already signed and broadcast the payment on-chain.
+       * The user does NOT need to sign anything — the Cowry AI agent wallet
+       * was the tx sender. Frontend should just display the explorer link.
+       */
+      type: "tx_sent";
+      preview: string;
+      txHash: string;
+      explorerUrl: string;
+      /** Agent wallet address that executed the tx */
+      agentAddress: string;
     };
 
 export type SessionState = {
