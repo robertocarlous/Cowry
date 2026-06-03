@@ -1,0 +1,25 @@
+# ── Environment / secrets — NEVER commit ─────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.env
+
+# ── Node modules ──────────────────────────────────────────────────────────────
+node_modules/
+**/node_modules/
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+dist/
+.next/
+out/
+build/
+
+# ── Hardhat ───────────────────────────────────────────────────────────────────
+artifacts/
+cache/
+typechain-types/
+coverage/
+
+# ── OS / editor ───────────────────────────────────────────────────────────────
+.DS_Store
+*.log

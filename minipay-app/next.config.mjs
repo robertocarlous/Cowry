@@ -35,6 +35,15 @@ const nextConfig = {
     // (used internally by viem's tempo chain definition — not used by Cowry)
     config.module.exprContextCritical = false;
 
+    // Allow webpack to resolve TypeScript-style `.js` imports to `.ts` source files.
+    // Required because @cowry/agent-core is now loaded from src/ (transpilePackages)
+    // and TypeScript ESM convention uses `.js` extensions for relative imports.
+    config.resolve.extensionAlias = {
+      ...config.resolve.extensionAlias,
+      ".js": [".ts", ".tsx", ".js", ".jsx"],
+      ".mjs": [".mts", ".mjs"],
+    };
+
     return config;
   },
 };

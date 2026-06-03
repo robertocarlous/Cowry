@@ -81,6 +81,19 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
           />
         )}
 
+        {/* Agent executed on-chain — no user signing needed */}
+        {r?.type === "tx_sent" && (
+          <TransactionCard
+            type="tx_sent"
+            recipients={[]}
+            totalAmount={0}
+            tokenSymbol=""
+            txHash={r.txHash}
+            explorerUrl={r.explorerUrl}
+            agentAddress={r.agentAddress}
+          />
+        )}
+
         <span className="text-[10px] text-cowry-border px-1">
           {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </span>

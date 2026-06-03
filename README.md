@@ -26,12 +26,12 @@ Cowry is an AI-powered payment application built on the blockchain. It eliminate
 ---
 
 
-## Celo mainnet deployment (chainId 42220)
-UsernameRegistry: `0x3b89d7b4997db5645db2829523ed3e79e55a0f02`  
-GroupRegistry: `0xee7ee3852663917a12ef95852a9fc4e092e45a31`  
-CowryPay: `0x2b0d2f1dec9ab3e06668145d21ed17715e288350`  
+## Celo mainnet deployment (chainId 42220) — v2 operator/agent
+UsernameRegistry: `0x1d8050eda109364c15db4c2c5a172128eaeabd25`  
+GroupRegistry: `0x3d8ea5b32dda2b3bfb71c9a07de25ecf28b73fd4`  
+CowryPay (v2 + operators): `0xf253dde47ca717737be3aefb76326180c2239e04`  
 USDC: `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` · USDm: `0x765DE816845861e75A25fCA122bb6898B8B1282a`  
-[Sourcify](https://sourcify.dev/server/repo-ui/42220/0x2b0d2f1dec9ab3e06668145d21ed17715e288350) · [CeloScan](https://celoscan.io/address/0x2b0d2f1dec9ab3e06668145d21ed17715e288350)
+[CeloScan](https://celoscan.io/address/0xf253dde47ca717737be3aefb76326180c2239e04)
 
 
 ## The Problem

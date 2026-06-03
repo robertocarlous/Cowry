@@ -130,14 +130,16 @@ export async function resolveUsernameOnChain(
     functionName: "getAddressByName",
     args: [norm.name],
   })) as `0x${string}`;
-  if (addr === ZERO) {
-    return {
-      ok: false,
-      username: norm.name,
-      reason: "Name is not registered on-chain.",
-    };
+
+  if (addr !== ZERO) {
+    return { ok: true, username: norm.name, address: addr };
   }
-  return { ok: true, username: norm.name, address: addr };
+
+  return {
+    ok: false,
+    username: norm.name,
+    reason: "Name is not registered on Cowry. Ask them to open the app and register first.",
+  };
 }
 
 export async function resolveGroupByNameOnChain(

@@ -11,10 +11,10 @@ function contractAddress(
   return fallback;
 }
 
-/** Celo mainnet — deployed 2026-05-20. Override via env if redeployed. */
-const DEFAULT_USERNAME_REGISTRY = "0x3b89d7b4997db5645db2829523ed3e79e55a0f02" as const;
-const DEFAULT_GROUP_REGISTRY    = "0xee7ee3852663917a12ef95852a9fc4e092e45a31" as const;
-const DEFAULT_COWRYPAY          = "0x2b0d2f1dec9ab3e06668145d21ed17715e288350" as const;
+/** Celo mainnet — v2 redeployment (operator/agent pattern). Override via env if redeployed. */
+const DEFAULT_USERNAME_REGISTRY = "0x1d8050eda109364c15db4c2c5a172128eaeabd25" as const;
+const DEFAULT_GROUP_REGISTRY    = "0x3d8ea5b32dda2b3bfb71c9a07de25ecf28b73fd4" as const;
+const DEFAULT_COWRYPAY          = "0xf253dde47ca717737be3aefb76326180c2239e04" as const;
 
 export const userRegistryContract = {
   abi: userRegistry,

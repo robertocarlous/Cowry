@@ -40,7 +40,7 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
   const [fromToken,        setFromToken]        = useState("");
   const [toChainId,        setToChainId]        = useState<number>(1);
   const [amount,           setAmount]           = useState("");
-  const [recipientAddress, setRecipientAddress] = useState(walletAddress);
+  const [recipientAddress, setRecipientAddress] = useState("");
 
   const [quote,       setQuote]       = useState<BridgeQuoteResult | null>(null);
   const [txHash,      setTxHash]      = useState("");
@@ -66,9 +66,8 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
       .finally(() => setChainsLoading(false));
   }, []);
 
-  useEffect(() => {
-    setRecipientAddress(walletAddress);
-  }, [walletAddress]);
+  // Intentionally not pre-filling recipient — user must explicitly enter
+  // the destination address to avoid accidental self-sends.
 
   const toChain = destinations.find((c) => c.chainId === toChainId);
   const sourceTokens = celo ? celoSourceTokens(celo) : [];
@@ -321,17 +320,18 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
                         className={fieldClass + (recipient && !recipientValid ? " border-red-500/50" : "")}
                       />
                     </div>
-                    {!sendingToSelf && recipientValid && (
+                    {/* Quick-fill: only shown when field is empty or user hasn't typed their own address */}
+                    {!sendingToSelf && (
                       <button
                         type="button"
                         onClick={() => { setRecipientAddress(walletAddress); resetQuote(); }}
                         className="text-[10px] text-cowry-blue hover:text-cowry-mint transition-colors"
                       >
-                        Use my wallet ({shortAddress(walletAddress)})
+                        Send to myself ({shortAddress(walletAddress)})
                       </button>
                     )}
                     {sendingToSelf && (
-                      <p className="text-[10px] text-cowry-muted">Sending to your connected wallet</p>
+                      <p className="text-[10px] text-amber-400">⚠️ Sending to your own wallet</p>
                     )}
                     <div>
                       <label className="text-[10px] text-cowry-muted mb-1 block">Token</label>

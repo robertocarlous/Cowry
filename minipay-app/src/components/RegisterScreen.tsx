@@ -67,7 +67,8 @@ export function RegisterScreen({ address, onRegistered }: Props) {
       setCachedUsername(address, name.toLowerCase().trim());
       setStep("done");
 
-      setTimeout(() => onRegistered(name.toLowerCase().trim()), 1200);
+      // Slight delay so user sees the ✅ confirmation before moving on
+      setTimeout(() => onRegistered(name.toLowerCase().trim()), 1000);
     } catch (e) {
       setError(formatRegistrationError(e, normalized));
       setStep("input");

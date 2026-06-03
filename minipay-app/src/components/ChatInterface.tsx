@@ -2,13 +2,14 @@
 import { useState, useRef } from "react";
 import Image from "next/image";
 import Link  from "next/link";
-import { useWallet }     from "@/hooks/useWallet";
-import { useChat }       from "@/hooks/useChat";
-import { MessageBubble } from "./MessageBubble";
+import { useWallet }          from "@/hooks/useWallet";
+import { useChat }            from "@/hooks/useChat";
+import { MessageBubble }      from "./MessageBubble";
 import { CrossChainSendPanel } from "./CrossChainSendPanel";
-import { RegisterScreen } from "./RegisterScreen";
-import { CommandMenu }   from "./CommandMenu";
-import type { Message }  from "@/lib/types";
+import { RegisterScreen }     from "./RegisterScreen";
+import { GrantAccessScreen }  from "./GrantAccessScreen";
+import { CommandMenu }        from "./CommandMenu";
+import type { Message }       from "@/lib/types";
 
 const SUGGESTIONS = [
   "Send 5 USDC to @alice",
@@ -20,8 +21,9 @@ const SUGGESTIONS = [
 export function ChatInterface() {
   const {
     address, username, shortAddress,
-    isConnecting, walletError, onRegistered,
+    isConnecting, walletError, onRegistered, onAccessGranted,
     ensureCelo, wrongChain, isConnected, isRegistered, isChecking,
+    hasGrantedAccess, isCheckingAccess,
   } = useWallet();
 
   const { messages, loading, txLoading, send, confirm, cancel, signAndSend, addBotMessage, bottomRef } =
@@ -95,7 +97,27 @@ export function ChatInterface() {
     return <RegisterScreen address={address!} onRegistered={onRegistered} />;
   }
 
-  // Main chat — only for registered users
+  // Access gate — registered users who haven't authorized Cowry AI yet
+  // Show spinner while checking allowance, then grant screen if not yet granted
+  if (isConnected && isRegistered && (isCheckingAccess || !hasGrantedAccess)) {
+    if (isCheckingAccess) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-cowry-dark">
+          <div className="w-8 h-8 rounded-full border-2 border-cowry-blue border-t-transparent animate-spin" />
+          <p className="text-xs text-cowry-muted">Checking Cowry AI access…</p>
+        </div>
+      );
+    }
+    return (
+      <GrantAccessScreen
+        address={address!}
+        username={username ?? ""}
+        onGranted={onAccessGranted}
+      />
+    );
+  }
+
+  // Main chat — registered users who have authorized Cowry AI
   return (
     <div className="relative flex-1 flex flex-col overflow-hidden bg-cowry-dark">
 

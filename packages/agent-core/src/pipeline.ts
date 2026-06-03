@@ -12,8 +12,12 @@ import {
   encodePay,
   encodePayGroupEqual,
   encodePayGroupSplit,
+  encodePayOnBehalf,
+  encodePayGroupEqualOnBehalf,
+  encodePayGroupSplitOnBehalf,
   encodedCallToJson,
 } from "./chain/encodeCowryPay.js";
+import { agentSendTx, tryGetAgentWallet } from "./agent/wallet.js";
 import {
   checkUsdcReadiness,
   totalBaseUnitsFromTxPlan,
@@ -219,6 +223,7 @@ async function maybeTokenReadinessBlock(
   };
 }
 
+/** Encode a plan for the USER to sign (fallback / no agent wallet). */
 function encodeTxPlan(plan: DraftTxPlan) {
   const token = plan.token as `0x${string}`;
   switch (plan.mode) {
@@ -238,6 +243,38 @@ function encodeTxPlan(plan: DraftTxPlan) {
       return [
         encodedCallToJson(encodePayGroupSplit(token, BigInt(plan.groupId), BigInt(plan.totalBaseUnits))),
       ];
+    default:
+      throw new Error(`Unhandled plan mode: ${(plan as { mode: string }).mode}`);
+  }
+}
+
+/**
+ * Encode a plan for the AGENT to sign on behalf of `payer`.
+ * The agent is the on-chain actor — all tx volume flows through the agent wallet.
+ */
+function encodeTxPlanOnBehalf(
+  plan: DraftTxPlan,
+  payer: `0x${string}`,
+): { to: `0x${string}`; data: `0x${string}`; value: `0x${string}` }[] {
+  const token = plan.token as `0x${string}`;
+  switch (plan.mode) {
+    case "pay": {
+      const c = encodePayOnBehalf(payer, token, plan.to as `0x${string}`, BigInt(plan.amountBaseUnits));
+      return [{ to: c.to, data: c.data, value: c.value as `0x${string}` }];
+    }
+    case "payGroupEqual": {
+      const c = encodePayGroupEqualOnBehalf(payer, token, BigInt(plan.groupId), BigInt(plan.amountPerMemberBaseUnits));
+      return [{ to: c.to, data: c.data, value: c.value as `0x${string}` }];
+    }
+    case "payGroupSplit": {
+      const c = encodePayGroupSplitOnBehalf(payer, token, BigInt(plan.groupId), BigInt(plan.totalBaseUnits));
+      return [{ to: c.to, data: c.data, value: c.value as `0x${string}` }];
+    }
+    case "payMany":
+      return plan.items.map((i) => {
+        const c = encodePayOnBehalf(payer, token, i.to as `0x${string}`, BigInt(i.amountBaseUnits));
+        return { to: c.to, data: c.data, value: c.value as `0x${string}` };
+      });
     default:
       throw new Error(`Unhandled plan mode: ${(plan as { mode: string }).mode}`);
   }
@@ -1048,6 +1085,50 @@ export async function handleUserMessage(
     }
     setPendingDraft(sessionId, null);
     clearDraft(pending.draftId);
+
+    // ── Agent-executed path ────────────────────────────────────────────────
+    // The Cowry AI agent signs and broadcasts the tx directly.
+    // Funds: payer (user, pre-approved CowryPay) → recipients.
+    // All tx volume is on the agent's address — agent is the on-chain actor.
+    const agentWallet = tryGetAgentWallet();
+    if (agentWallet && walletAddress && deps.mode === "chain") {
+      try {
+        const calls = encodeTxPlanOnBehalf(pending.txPlan, walletAddress);
+        let lastHash: `0x${string}` = "0x";
+        for (const call of calls) {
+          lastHash = await agentSendTx(call.to, call.data, 0n);
+        }
+        const explorerUrl = `https://celoscan.io/tx/${lastHash}`;
+        return {
+          type: "tx_sent",
+          preview: pending.preview,
+          txHash: lastHash,
+          explorerUrl,
+          agentAddress: agentWallet.address,
+        };
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const meta = await deps.getMeta();
+        const tokenInfo = getTokenByAddress(pending.txPlan.token);
+        const transactions = encodeTxPlan(pending.txPlan);
+        const agent = await getAgentIdentity(deps.publicClient);
+        return {
+          type: "tx_ready",
+          draftId: pending.draftId,
+          preview: pending.preview,
+          tx: {
+            chainId: meta.chainId,
+            token: { address: tokenInfo.address, symbol: tokenInfo.symbol, decimals: tokenInfo.decimals },
+            cowryPay: meta.cowryPay,
+            note: `⚠️ Agent execution failed (${errMsg}). Please sign manually.`,
+            transactions,
+          },
+          ...(agent ? { agent } : {}),
+        };
+      }
+    }
+
+    // ── Fallback: no agent wallet → return calldata for user to sign ──────
     const meta = await deps.getMeta();
     const tokenInfo = getTokenByAddress(pending.txPlan.token);
     const transactions = encodeTxPlan(pending.txPlan);
@@ -1060,9 +1141,7 @@ export async function handleUserMessage(
         chainId: meta.chainId,
         token: { address: tokenInfo.address, symbol: tokenInfo.symbol, decimals: tokenInfo.decimals },
         cowryPay: meta.cowryPay,
-        note:
-          "You sign with your MiniPay wallet (your address pays). Cowry AI builds the transaction; " +
-          "funds move from you via CowryPay, not from the agent wallet.",
+        note: "AGENT_PRIVATE_KEY not set. You are signing with your MiniPay wallet.",
         transactions,
       },
       ...(agent ? { agent } : {}),

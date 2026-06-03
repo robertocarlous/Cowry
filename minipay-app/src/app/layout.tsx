@@ -5,6 +5,12 @@ export const metadata: Metadata = {
   title:       "Cowry — Talk. Send. Automate.",
   description: "AI-powered crypto payments on Celo. Send money as easily as sending a message.",
   manifest:    "/manifest.json",
+  // PWA / MiniPay in-app browser
+  appleWebApp: {
+    capable:       true,
+    statusBarStyle: "black-translucent",
+    title:         "Cowry",
+  },
   openGraph: {
     title:       "Cowry — Talk. Send. Automate.",
     description: "AI-powered conversational crypto payments on Celo.",
@@ -13,16 +19,19 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  width:        "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  themeColor:   "#0A0F1E",
+  width:            "device-width",
+  initialScale:     1,
+  maximumScale:     1,
+  userScalable:     false,   // prevent accidental pinch-zoom inside MiniPay
+  viewportFit:      "cover", // respect notch / safe-area on all phones
+  themeColor:       "#0A0F1E",
+  colorScheme:      "dark",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full scroll-smooth">
-      <body className="h-full bg-cowry-dark font-sans antialiased">
+    <html lang="en" className="h-full" suppressHydrationWarning>
+      <body className="h-full overflow-hidden bg-cowry-dark font-sans antialiased">
         {children}
       </body>
     </html>

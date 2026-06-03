@@ -1,10 +1,34 @@
 "use client";
 import { decodeErrorResult, encodeFunctionData, zeroAddress } from "viem";
-import { getPublicClient, sendTransaction } from "./wallet";
+import { getPublicClient, sendTransaction, requireProvider } from "./wallet";
 
-export const USERNAME_REGISTRY = "0x3b89d7b4997db5645db2829523ed3e79e55a0f02" as const;
+export const USERNAME_REGISTRY = "0x1d8050eda109364c15db4c2c5a172128eaeabd25" as const;
 
 const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+/**
+ * eth_call that prefers the MiniPay injected provider over our own public RPC.
+ * This avoids forno.celo.org being unreachable in server/test environments.
+ */
+async function registryCall(
+  to: `0x${string}`,
+  data: `0x${string}`,
+): Promise<string> {
+  // Try injected provider first (MiniPay — always available in-app)
+  try {
+    const provider = requireProvider();
+    const result = await provider.request({
+      method: "eth_call",
+      params: [{ to, data }, "latest"],
+    }) as string;
+    return result ?? "0x";
+  } catch {
+    // Fall back to our public client (forno.celo.org or NEXT_PUBLIC_CELO_RPC_URL)
+    const client = getPublicClient();
+    const result = await client.call({ to, data });
+    return result.data ?? "0x";
+  }
+}
 
 const REGISTRY_ABI = [
   {
@@ -57,19 +81,23 @@ export function setCachedUsername(address: string, username: string) {
   try { localStorage.setItem(cacheKey(address), username); } catch { /* ignore */ }
 }
 
+export function clearCachedUsername(address: string) {
+  try { localStorage.removeItem(cacheKey(address)); } catch { /* ignore */ }
+}
+
 // ── On-chain checks ───────────────────────────────────────────────────────────
 
 /** Returns true if this address has already claimed a username on-chain. */
 export async function isRegisteredOnChain(address: `0x${string}`): Promise<boolean> {
   try {
-    const client = getPublicClient();
-    const hash = await client.readContract({
-      address: USERNAME_REGISTRY,
+    const data = encodeFunctionData({
       abi: REGISTRY_ABI,
       functionName: "getNameHashByAddress",
       args: [address],
     });
-    return (hash as string) !== ZERO_HASH;
+    const raw = await registryCall(USERNAME_REGISTRY, data);
+    // raw is a 32-byte hex — compare to zero hash
+    return raw !== ZERO_HASH && raw !== "0x" && raw !== "0x0";
   } catch {
     return false;
   }
@@ -82,15 +110,16 @@ export async function isRegisteredOnChain(address: `0x${string}`): Promise<boole
  */
 export async function getUsernameFromChain(address: `0x${string}`): Promise<string | null> {
   try {
-    const client = getPublicClient();
-    const nameHash = await client.readContract({
-      address: USERNAME_REGISTRY,
+    const data = encodeFunctionData({
       abi: REGISTRY_ABI,
       functionName: "getNameHashByAddress",
       args: [address],
     });
-    if ((nameHash as string) === ZERO_HASH) return null;
+    const nameHash = await registryCall(USERNAME_REGISTRY, data);
+    if (nameHash === ZERO_HASH || nameHash === "0x" || nameHash === "0x0") return null;
 
+    // For event log scanning we still need the public client (getLogs)
+    const client = getPublicClient();
     let latest = 0n;
     try {
       latest = await client.getBlockNumber();
