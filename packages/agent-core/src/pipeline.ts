@@ -62,10 +62,34 @@ function parseGroupId(
   const s = String(raw).trim();
   if (!/^\d+$/.test(s)) return null;
   try {
-    return BigInt(s);
+    const n = BigInt(s);
+    return n > 0n ? n : null; // groupIds start at 1; 0 means the LLM didn't know it
   } catch {
     return null;
   }
+}
+
+/** Resolve groupId from either a numeric intent.groupId or a intent.groupName lookup. */
+async function resolveGroupId(
+  deps: ResolutionDeps,
+  intent: { groupId?: string | number | null; groupName?: string | null },
+  wallet: `0x${string}` | undefined,
+): Promise<{ gid: bigint } | { error: string }> {
+  const fromId = parseGroupId(intent.groupId);
+  if (fromId !== null) return { gid: fromId };
+
+  const name = intent.groupName?.trim();
+  if (!name) {
+    return { error: "Please say which group — e.g. **remove @alice from Friends**" };
+  }
+  if (!wallet) {
+    return { error: "Connect your wallet so I can look up the group." };
+  }
+  const r = await deps.resolveGroupByName(name, wallet);
+  if (!r.ok) {
+    return { error: r.reason };
+  }
+  return { gid: r.groupId };
 }
 
 function chainAdminGate(
@@ -620,19 +644,14 @@ export async function adminFromIntent(
   if (intent.action === "ADD_MEMBERS") {
     const gate = chainAdminGate(deps, wallet);
     if (gate) return { kind: "clarify", question: gate };
-    const gid = parseGroupId(intent.groupId);
-    if (gid == null) {
-      return {
-        kind: "clarify",
-        question:
-          "Say which group id, e.g. **add @mack to group 3** (get ids from **list my groups**).",
-      };
-    }
+    const groupRes = await resolveGroupId(deps, intent, wallet);
+    if ("error" in groupRes) return { kind: "clarify", question: groupRes.error };
+    const gid = groupRes.gid;
     const handles = intent.members ?? [];
     if (handles.length === 0) {
       return {
         kind: "clarify",
-        question: "Name who to add, e.g. **add @mack to group 3**.",
+        question: "Who do you want to add? e.g. **add @mack to Friends**",
       };
     }
     const resolved: { username: string; address: `0x${string}` }[] = [];
@@ -667,13 +686,12 @@ export async function adminFromIntent(
   if (intent.action === "REMOVE_MEMBERS") {
     const gate = chainAdminGate(deps, wallet);
     if (gate) return { kind: "clarify", question: gate };
-    const gid = parseGroupId(intent.groupId);
-    if (gid == null) {
-      return { kind: "clarify", question: "Say which group id, e.g. **remove @mack from group 3**." };
-    }
+    const groupRes = await resolveGroupId(deps, intent, wallet);
+    if ("error" in groupRes) return { kind: "clarify", question: groupRes.error };
+    const gid = groupRes.gid;
     const handles = intent.members ?? [];
     if (handles.length === 0) {
-      return { kind: "clarify", question: "Name who to remove, e.g. **remove @mack from group 3**." };
+      return { kind: "clarify", question: "Who do you want to remove? e.g. **remove @mack from Friends**" };
     }
     const resolvedRm: { username: string; address: `0x${string}` }[] = [];
     for (const h of handles) {
