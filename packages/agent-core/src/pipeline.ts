@@ -768,7 +768,7 @@ export async function adminFromIntent(
         question: "What do you want to name this group, and who should be in it?\n\nExample: **create group Friends with @alice, @bob**",
       };
     }
-    const res = await deps.adminCreateGroup(name, mem);
+    const res = await deps.adminCreateGroup(name, mem, wallet);
     if (!res.ok) {
       return { kind: "clarify", question: res.reason };
     }

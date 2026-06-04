@@ -11,7 +11,7 @@ import {
   resolveUsernameOnChain,
 } from "../chain/reads.js";
 import { normalizeUsernameForRegistry } from "../chain/normalizeUsername.js";
-import type { EncodedTxJson, ResolutionDeps, TxMeta } from "./types.js";
+import type { ResolutionDeps, TxMeta } from "./types.js";
 
 export function createChainResolutionDeps(rpcUrl: string): ResolutionDeps {
   const chainId = Number(process.env.CHAIN_ID || 42220); // Celo mainnet
@@ -47,7 +47,7 @@ export function createChainResolutionDeps(rpcUrl: string): ResolutionDeps {
       chainId,
       cowryPay: cowrypayContract.address,
     }),
-    adminCreateGroup: async (displayName: string, memberHandles: string[]) => {
+    adminCreateGroup: async (displayName: string, memberHandles: string[], payerWallet?: `0x${string}`) => {
       const trimmed = displayName.trim();
       if (!trimmed) {
         return { ok: false, reason: "Group name cannot be empty." };
@@ -92,6 +92,16 @@ export function createChainResolutionDeps(rpcUrl: string): ResolutionDeps {
           for (const member of resolvedMembers) {
             const addTx = encodeAddMember(groupId, member.address);
             await agentSendTx(addTx.to as `0x${string}`, addTx.data as `0x${string}`, 0n);
+          }
+
+          // Step 3: add the payer's wallet as a member so getGroupsForMember(payer)
+          // returns this group — allows group name resolution when paying later.
+          const payerIsAlreadyMember = resolvedMembers.some(
+            m => m.address.toLowerCase() === payerWallet?.toLowerCase(),
+          );
+          if (payerWallet && !payerIsAlreadyMember) {
+            const payerTx = encodeAddMember(groupId, payerWallet);
+            await agentSendTx(payerTx.to as `0x${string}`, payerTx.data as `0x${string}`, 0n);
           }
 
           const memberList = resolvedMembers.map(m => `@${m.username}`).join(", ");

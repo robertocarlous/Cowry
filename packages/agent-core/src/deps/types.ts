@@ -39,6 +39,8 @@ export type ResolutionDeps = {
   adminCreateGroup(
     displayName: string,
     memberHandles: string[],
+    /** Payer's wallet — added as a group member so resolveGroupByName finds it later */
+    payerWallet?: `0x${string}`,
   ): Promise<
     { ok: true; message: string; transactions?: EncodedTxJson[] } | { ok: false; reason: string }
   >;
