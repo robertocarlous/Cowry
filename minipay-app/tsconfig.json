@@ -15,9 +15,21 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "viem":    ["./node_modules/viem"],
+      "viem/*":  ["./node_modules/viem/*"],
+      "openai":  ["./node_modules/openai"],
+      "openai/*":["./node_modules/openai/*"],
+      "zod":     ["./node_modules/zod"],
+      "zod/*":   ["./node_modules/zod/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "../packages/agent-core/src/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }
