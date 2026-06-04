@@ -12,10 +12,10 @@ import { CommandMenu }        from "./CommandMenu";
 import type { Message }       from "@/lib/types";
 
 const SUGGESTIONS = [
-  "Send 5 USDC to @alice",
-  "Send 2 USDm to @bob",
-  "Split 10 USDC among @bob, @carol",
-  "My balance",
+  "What's my balance",
+  "Send 5 USDC to @",
+  "Split 30 USDC among @",
+  "Create a group called ",
 ];
 
 export function ChatInterface() {

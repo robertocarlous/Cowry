@@ -16,49 +16,46 @@ interface Category {
 const CATEGORIES: Category[] = [
   {
     icon: "💸",
-    title: "Payments",
+    title: "Send Money",
     commands: [
-      { label: "Send USDC",        template: "Send 10 USDC to @",            desc: "Pay with Circle USDC on Celo" },
-      { label: "Send USDm",        template: "Send 10 USDm to @",            desc: "Pay with Mento USDm on Celo" },
-      { label: "Split among people", template: "Split 30 USDC among @alice, @bob", desc: "Divide equally (USDC or USDm)" },
-      { label: "Send to group",    template: "Send 20 USDC to everyone in ", desc: "Same amount per member" },
-      { label: "Split across group", template: "Split 100 USDC across group ", desc: "Divide total across group" },
+      { label: "Send USDC",               template: "Send 10 USDC to @",              desc: "Send USDC to anyone on Cowry" },
+      { label: "Send USDm",               template: "Send 10 USDm to @",              desc: "Send USDm to anyone on Cowry" },
+      { label: "Split a bill",            template: "Split 60 USDC among @",          desc: "Divide an amount equally among people" },
+      { label: "Pay everyone in a group", template: "Send 20 USDC to everyone in ",   desc: "Same amount to every group member" },
+      { label: "Split across a group",    template: "Split 120 USDC across group ",   desc: "Divide a total among all group members" },
     ],
   },
   {
     icon: "👥",
     title: "Groups",
     commands: [
-      { label: "List my groups",   template: "list my groups",                        desc: "See all your groups and members" },
-      { label: "Create group",     template: "Create group  with @alice, @bob",       desc: "Create a named payment group" },
-      { label: "Add to group",     template: "Add @alice to group ",                  desc: "Add a member to an existing group" },
-      { label: "Remove from group",template: "Remove @alice from group ",             desc: "Remove a member from a group" },
-      { label: "Cancel group",     template: "Cancel group ",                         desc: "Delete a group (use group ID)" },
+      { label: "Create a group",   template: "Create a group called ",        desc: "Start a new payment group with members" },
+      { label: "See my groups",    template: "Show my groups",                desc: "List all your groups and who's in them" },
+      { label: "Add someone",      template: "Add @ to my ",                  desc: "Add a new member to an existing group" },
+      { label: "Remove someone",   template: "Remove @ from my ",             desc: "Remove a member from a group" },
     ],
   },
   {
     icon: "💰",
-    title: "Tokens & Account",
+    title: "My Wallet",
     commands: [
-      { label: "My balance",       template: "My balance",                            desc: "Check your USDm and USDC balance" },
-      { label: "Approve USDm",     template: "Approve 500 USDm for Cowry",            desc: "Allow CowryPay to spend your USDm" },
-      { label: "Approve USDC",     template: "Approve 500 USDC for Cowry",            desc: "Allow CowryPay to spend your USDC" },
-      { label: "Register username",template: "Register as ",                          desc: "Claim a unique @username on-chain" },
+      { label: "Check my balance",  template: "What's my balance",            desc: "See how much USDC and USDm you have" },
+      { label: "Recent payments",   template: "Show my recent transactions",  desc: "View your payment history" },
+      { label: "Claim a username",  template: "Register as ",                 desc: "Claim your unique @username on Cowry" },
     ],
   },
   {
     icon: "↗️",
-    title: "Cross-chain send",
+    title: "Send from another chain",
     commands: [
-      { label: "Send to another chain", template: "",                                  desc: "Celo USDC/USDm → USDC on Ethereum, Base, Arbitrum, etc." },
+      { label: "Bridge to Celo",    template: "",                             desc: "Send USDC from Ethereum, Base, Arbitrum and more" },
     ],
   },
   {
-    icon: "ℹ️",
+    icon: "❓",
     title: "Help",
     commands: [
-      { label: "Show all commands", template: "help",                                desc: "Get the full command reference" },
-      { label: "My transactions",   template: "My transactions",                     desc: "View recent payment history" },
+      { label: "What can Cowry do?", template: "What can you do",             desc: "See everything Cowry can help you with" },
     ],
   },
 ];

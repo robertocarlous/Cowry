@@ -20,6 +20,7 @@ export const adminActionSchema = z.enum([
   "LIST_GROUPS",
   "HELP",
   "BALANCE",
+  "TX_HISTORY",
   "CHAT",
 ]);
 

@@ -157,29 +157,6 @@ function policyCheck(
   return null;
 }
 
-async function buildWelcomeMessage(
-  deps: ResolutionDeps,
-  wallet: `0x${string}` | undefined,
-): Promise<string> {
-  const lines: string[] = ["Welcome to **Cowry**."];
-  if (deps.mode === "unavailable" && deps.reason) {
-    lines.push("", `**On-chain usernames are unavailable right now**: ${deps.reason}`);
-  }
-  if (deps.mode === "chain" && wallet && !(await deps.isWalletRegistered(wallet))) {
-    lines.push(
-      "",
-      "**Your wallet does not have a Cowry name yet** — register before sending.",
-    );
-  }
-  lines.push(
-    "",
-    "1. Always send **walletAddress** in the API body (the wallet that will sign).",
-    "2. **Register**: **register as yourname** (3–32 chars, a–z and 0–9) — links your @name to your wallet on-chain.",
-    "3. **Pay with USDC or USDm**: e.g. **send 20 USDC to @alice**, **send 5 USDm to @bob**, or **approve 500 USDC for cowry**.",
-    "Say **help** for more.",
-  );
-  return lines.join("\n");
-}
 
 async function maybeTokenReadinessBlock(
   deps: ResolutionDeps,
@@ -759,12 +736,18 @@ export async function adminFromIntent(
     };
   }
   if (intent.action === "CREATE_GROUP") {
-    const name = intent.groupName;
+    const name = intent.groupName?.trim();
     const mem = intent.members ?? [];
+    if (!name && mem.length > 0) {
+      return {
+        kind: "clarify",
+        question: `What do you want to name this group?`,
+      };
+    }
     if (!name || mem.length === 0) {
       return {
         kind: "clarify",
-        question: "Say: create group MyName with @user1, @user2",
+        question: "What do you want to name this group, and who should be in it?\n\nExample: **create group Friends with @alice, @bob**",
       };
     }
     const res = await deps.adminCreateGroup(name, mem);

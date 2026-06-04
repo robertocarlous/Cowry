@@ -13,7 +13,7 @@ const SYSTEM = `You are Cowry's intent parser. Output ONLY valid JSON matching t
 - Add members to group by id: {"kind":"admin","action":"ADD_MEMBERS","groupId":number,"members":["u1","u2"]}
 - Remove members: {"kind":"admin","action":"REMOVE_MEMBERS","groupId":number,"members":["u1"]}
 - Cancel group: {"kind":"admin","action":"CANCEL_GROUP","groupId":number}
-- Create group: {"kind":"admin","action":"CREATE_GROUP","groupName":"string","members":["u1","u2"]}
+- Create group (groupName is REQUIRED — if the user did not provide a name, set groupName to ""): {"kind":"admin","action":"CREATE_GROUP","groupName":"string","members":["u1","u2"]}
 - List groups: {"kind":"admin","action":"LIST_GROUPS"}
 - Help / what can you do: {"kind":"admin","action":"HELP"}
 - Show USDC yield vaults / earn / invest / Morpho / APY: {"kind":"earn","action":"LIST_OPPORTUNITIES"}
