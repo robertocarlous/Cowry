@@ -142,6 +142,44 @@ export async function resolveUsernameOnChain(
   };
 }
 
+/**
+ * Scan NameRegistered events once and build an address→username map for all
+ * provided addresses. One RPC call instead of N separate lookups.
+ */
+async function batchResolveAddresses(
+  client: PublicClient,
+  addresses: `0x${string}`[],
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  if (addresses.length === 0) return result;
+
+  try {
+    const latest = await client.getBlockNumber().catch(() => 0n);
+    const fromBlock = latest > 100_000n ? latest - 100_000n : 0n;
+
+    const logs = await client.getLogs({
+      address: userRegistryContract.address,
+      event: NAME_REGISTERED_EVENT,
+      fromBlock,
+      toBlock: "latest",
+    }).catch(() => []);
+
+    const addrSet = new Set(addresses.map(a => a.toLowerCase()));
+    for (const log of logs) {
+      const args = log.args as Record<string, unknown>;
+      const owner = typeof args["owner"] === "string" ? args["owner"].toLowerCase() : null;
+      const name  = typeof args["name"]  === "string" ? args["name"]              : null;
+      if (owner && name && addrSet.has(owner)) {
+        result.set(owner, name);
+      }
+    }
+  } catch {
+    // If event scan fails just return empty map — callers fall back to short addresses
+  }
+
+  return result;
+}
+
 /** Agent wallet address — groups are owned by the agent, not the user. */
 function getAgentAddress(): `0x${string}` | null {
   try {
@@ -282,7 +320,8 @@ export async function formatGroupsLinesForWallet(
     return "You don't have any groups yet.\n\nTry: **create a group called Friends with @alice, @bob**";
   }
 
-  const lines: string[] = [];
+  // Single pass: fetch group + members for every id
+  const groupData: { id: bigint; name: string; members: readonly `0x${string}`[] }[] = [];
   for (const id of ids) {
     const g = (await client.readContract({
       address: groupRegistryContract.address,
@@ -298,13 +337,25 @@ export async function formatGroupsLinesForWallet(
       functionName: "getMembers",
       args: [id],
     })) as readonly `0x${string}`[];
-    const count = members.length;
-    lines.push(`👥 **${name}** — ${count} member${count === 1 ? "" : "s"} (ID: ${id})`);
+    groupData.push({ id, name, members });
   }
 
-  if (lines.length === 0) {
+  if (groupData.length === 0) {
     return "You don't have any active groups yet.\n\nTry: **create a group called Friends with @alice, @bob**";
   }
 
-  return `Here are your groups:\n\n${lines.join("\n")}\n\nTo pay a group: **send 10 USDC to everyone in Friends**`;
+  // One batch event scan to resolve ALL member addresses → usernames
+  const allAddresses = [...new Set(groupData.flatMap(g => [...g.members]))];
+  const usernameMap = await batchResolveAddresses(client, allAddresses);
+
+  const lines = groupData.map(({ id, name, members }) => {
+    const labels = members.map(addr => {
+      const u = usernameMap.get(addr.toLowerCase());
+      return u ? `@${u}` : `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+    });
+    const memberText = labels.length > 0 ? labels.join(", ") : "no members yet";
+    return `👥 **${name}** (ID: ${id})\n   ${memberText}`;
+  });
+
+  return `Here are your groups:\n\n${lines.join("\n\n")}\n\nTo pay: **send 10 USDC to everyone in Friends**`;
 }
