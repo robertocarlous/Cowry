@@ -10,8 +10,8 @@ const SYSTEM = `You are Cowry's intent parser. Output ONLY valid JSON matching t
 - Split total across a group (payGroupSplit): {"kind":"payment","action":"GROUP_SPLIT_TOTAL","amount":number,"groupName":"string","token":"USDC or USDm when specified"}
 - Split total equally among named users: {"kind":"payment","action":"SPLIT_EQUAL","amount":number,"members":["user1","user2",...] without @,"token":"USDC or USDm when specified"}
 - Approve token for CowryPay: {"kind":"admin","action":"APPROVE_USDC","amount":number,"token":"USDm or USDC"}
-- Add members to group by id: {"kind":"admin","action":"ADD_MEMBERS","groupId":number,"members":["u1","u2"]}
-- Remove members: {"kind":"admin","action":"REMOVE_MEMBERS","groupId":number,"members":["u1"]}
+- Add members to group (use groupName if user says name, groupId if user says a number): {"kind":"admin","action":"ADD_MEMBERS","groupName":"string","members":["u1","u2"]}
+- Remove members from group (use groupName if user says name, groupId if user says a number): {"kind":"admin","action":"REMOVE_MEMBERS","groupName":"string","members":["u1"]}
 - Cancel group: {"kind":"admin","action":"CANCEL_GROUP","groupId":number}
 - Create group (groupName is REQUIRED — if the user did not provide a name, set groupName to ""): {"kind":"admin","action":"CREATE_GROUP","groupName":"string","members":["u1","u2"]}
 - List groups: {"kind":"admin","action":"LIST_GROUPS"}

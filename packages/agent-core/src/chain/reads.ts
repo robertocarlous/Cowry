@@ -142,6 +142,19 @@ export async function resolveUsernameOnChain(
   };
 }
 
+/** Agent wallet address — groups are owned by the agent, not the user. */
+function getAgentAddress(): `0x${string}` | null {
+  try {
+    const pk = process.env.AGENT_PRIVATE_KEY;
+    if (!pk?.startsWith("0x")) return null;
+    // Derive address from private key without importing the full wallet module
+    const { privateKeyToAccount } = require("viem/accounts");
+    return privateKeyToAccount(pk as `0x${string}`).address as `0x${string}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function resolveGroupByNameOnChain(
   client: PublicClient,
   wallet: `0x${string}`,
@@ -158,12 +171,24 @@ export async function resolveGroupByNameOnChain(
 > {
   const target = searchName.trim().toLowerCase().replace(/\bgroup\b/gi, "").trim();
 
+  // Groups owned by the user's wallet (legacy / direct registration)
   const owned = (await client.readContract({
     address: groupRegistryContract.address,
     abi: groupRegistryContract.abi,
     functionName: "getGroupsOwnedBy",
     args: [wallet],
   })) as readonly bigint[];
+
+  // Groups owned by the agent (all agent-created groups)
+  const agentAddr = getAgentAddress();
+  const agentOwned = agentAddr ? (await client.readContract({
+    address: groupRegistryContract.address,
+    abi: groupRegistryContract.abi,
+    functionName: "getGroupsOwnedBy",
+    args: [agentAddr],
+  })) as readonly bigint[] : [];
+
+  // Groups where wallet is a member (covers both patterns)
   const memberOf = (await client.readContract({
     address: groupRegistryContract.address,
     abi: groupRegistryContract.abi,
@@ -173,7 +198,7 @@ export async function resolveGroupByNameOnChain(
 
   const seen = new Set<string>();
   const ids: bigint[] = [];
-  for (const id of [...owned, ...memberOf]) {
+  for (const id of [...owned, ...agentOwned, ...memberOf]) {
     const k = id.toString();
     if (seen.has(k)) continue;
     seen.add(k);
@@ -228,6 +253,15 @@ export async function formatGroupsLinesForWallet(
     functionName: "getGroupsOwnedBy",
     args: [wallet],
   })) as readonly bigint[];
+
+  const agentAddr = getAgentAddress();
+  const agentOwned = agentAddr ? (await client.readContract({
+    address: groupRegistryContract.address,
+    abi: groupRegistryContract.abi,
+    functionName: "getGroupsOwnedBy",
+    args: [agentAddr],
+  })) as readonly bigint[] : [];
+
   const memberOf = (await client.readContract({
     address: groupRegistryContract.address,
     abi: groupRegistryContract.abi,
@@ -237,7 +271,7 @@ export async function formatGroupsLinesForWallet(
 
   const seen = new Set<string>();
   const ids: bigint[] = [];
-  for (const id of [...owned, ...memberOf]) {
+  for (const id of [...owned, ...agentOwned, ...memberOf]) {
     const k = id.toString();
     if (seen.has(k)) continue;
     seen.add(k);
@@ -245,7 +279,7 @@ export async function formatGroupsLinesForWallet(
   }
 
   if (ids.length === 0) {
-    return "No groups found for this wallet. Create one on-chain (GroupRegistry.createGroup).";
+    return "You don't have any groups yet.\n\nTry: **create a group called Friends with @alice, @bob**";
   }
 
   const lines: string[] = [];
@@ -256,18 +290,21 @@ export async function formatGroupsLinesForWallet(
       functionName: "getGroup",
       args: [id],
     })) as readonly [`0x${string}`, string, boolean];
-    const [owner, name, active] = g;
+    const [, name, active] = g;
+    if (!active) continue;
     const members = (await client.readContract({
       address: groupRegistryContract.address,
       abi: groupRegistryContract.abi,
       functionName: "getMembers",
       args: [id],
     })) as readonly `0x${string}`[];
-    const role =
-      owner.toLowerCase() === wallet.toLowerCase() ? "owner" : "member";
-    lines.push(
-      `• id ${id} — "${name}" (${active ? "active" : "inactive"}, ${role}, ${members.length} payee(s))`,
-    );
+    const count = members.length;
+    lines.push(`👥 **${name}** — ${count} member${count === 1 ? "" : "s"} (ID: ${id})`);
   }
-  return `Your groups:\n${lines.join("\n")}`;
+
+  if (lines.length === 0) {
+    return "You don't have any active groups yet.\n\nTry: **create a group called Friends with @alice, @bob**";
+  }
+
+  return `Here are your groups:\n\n${lines.join("\n")}\n\nTo pay a group: **send 10 USDC to everyone in Friends**`;
 }
