@@ -80,6 +80,20 @@ export function getPendingYieldDeposit(
   return getSession(sessionId).pendingYieldDeposit;
 }
 
+/** Store members while waiting for user to supply the group name */
+export function setPendingGroupMembers(sessionId: string, members: string[] | null): void {
+  const s = getSession(sessionId);
+  if (members === null) {
+    delete s.pendingGroupMembers;
+  } else {
+    s.pendingGroupMembers = members;
+  }
+}
+
+export function getPendingGroupMembers(sessionId: string): string[] | null {
+  return getSession(sessionId).pendingGroupMembers ?? null;
+}
+
 /** Test helper */
 export function resetStores(): void {
   drafts.clear();

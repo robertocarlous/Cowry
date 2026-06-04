@@ -1,6 +1,7 @@
 "use client";
 import type { Message } from "@/lib/types";
 import { TransactionCard } from "./TransactionCard";
+import { TxHistoryCard } from "./TxHistoryCard";
 
 interface Props {
   message:    Message;
@@ -92,6 +93,11 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
             explorerUrl={r.explorerUrl}
             agentAddress={r.agentAddress}
           />
+        )}
+
+        {/* Transaction history */}
+        {r?.type === "tx_history" && (
+          <TxHistoryCard items={r.items} />
         )}
 
         <span className="text-[10px] text-cowry-border px-1">

@@ -121,17 +121,6 @@ export type PendingTxData = {
   createdAt: number;
 };
 
-// ── Transaction history item ──────────────────────────────────────────────────
-
-export type TxHistoryItem = {
-  phone: string;
-  txHash: string;
-  intent: Intent;
-  resolved: ResolvedPayment;
-  timestamp: number;
-  status: "confirmed" | "failed" | "pending";
-};
-
 // ── Security ──────────────────────────────────────────────────────────────────
 
 export type SecurityResult =
@@ -211,7 +200,21 @@ export type ChatResponse =
       txHash: string;
       explorerUrl: string;
       agentAddress: string;
+    }
+  | {
+      /** Recent on-chain transaction history for the user's wallet. */
+      type: "tx_history";
+      items: TxHistoryItem[];
     };
+
+export type TxHistoryItem = {
+  hash: string;
+  direction: "sent" | "received";
+  amount: string;
+  token: "USDC" | "USDm";
+  counterparty: string;  // short address e.g. "0xAbc…1234"
+  explorerUrl: string;
+};
 
 export type SessionState = {
   pendingDraftId: string | null;
@@ -219,4 +222,6 @@ export type SessionState = {
   earnOpportunities?: CachedOpportunity[];
   /** Pending yield deposit awaiting user confirm */
   pendingYieldDeposit?: PendingYieldDeposit;
+  /** Members collected for a group whose name is still pending from user */
+  pendingGroupMembers?: string[];
 };

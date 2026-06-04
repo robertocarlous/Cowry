@@ -41,8 +41,10 @@ import {
   getEarnOpportunity,
   setPendingYieldDeposit,
   getPendingYieldDeposit,
+  setPendingGroupMembers,
+  getPendingGroupMembers,
 } from "./state.js";
-import type { ChatResponse, EncodedTxJson } from "./types.js";
+import type { ChatResponse, EncodedTxJson, TxHistoryItem } from "./types.js";
 import type { ResolutionDeps } from "./deps/types.js";
 import {
   getOpportunities,
@@ -549,13 +551,15 @@ export async function paymentFromIntent(
 
 type AdminIntentResult =
   | { kind: "info"; message: string; transactions?: EncodedTxJson[] }
-  | { kind: "clarify"; question: string };
+  | { kind: "clarify"; question: string }
+  | { kind: "tx_history"; items: TxHistoryItem[] };
 
 export async function adminFromIntent(
   intent: ParsedIntent,
   deps: ResolutionDeps,
   wallet: `0x${string}` | undefined,
   rawText?: string,
+  sessionId?: string,
 ): Promise<AdminIntentResult> {
   if (intent.kind !== "admin") {
     return { kind: "clarify", question: "Not an admin command." };
@@ -631,22 +635,32 @@ export async function adminFromIntent(
         question: "Name who to add, e.g. **add @mack to group 3**.",
       };
     }
-    const txs: EncodedTxJson[] = [];
+    const resolved: { username: string; address: `0x${string}` }[] = [];
     for (const h of handles) {
       const r = await deps.resolveUsername(h);
       if (!r.ok) {
-        return {
-          kind: "clarify",
-          question: `Cannot resolve @${r.username}: ${r.reason ?? "unknown"}`,
-        };
+        return { kind: "clarify", question: `Cannot resolve @${r.username}: ${r.reason ?? "unknown"}` };
       }
-      txs.push(
-        encodedCallToJson(encodeAddMember(gid, r.address)),
-      );
+      resolved.push({ username: r.username, address: r.address });
     }
+    // Agent-executed path
+    const addAgentWallet = tryGetAgentWallet();
+    if (addAgentWallet && deps.mode === "chain") {
+      try {
+        for (const m of resolved) {
+          const c = encodeAddMember(gid, m.address);
+          await agentSendTx(c.to as `0x${string}`, c.data as `0x${string}`, 0n);
+        }
+        const names = resolved.map(m => `@${m.username}`).join(", ");
+        return { kind: "info", message: `✅ Added ${names} to group **${gid}**.` };
+      } catch (err) {
+        return { kind: "clarify", question: `Agent could not add member: ${err instanceof Error ? err.message : String(err)}` };
+      }
+    }
+    const txs = resolved.map(m => encodedCallToJson(encodeAddMember(gid, m.address)));
     return {
       kind: "info",
-      message: `Sign **${txs.length}** GroupRegistry.addMember tx(s) for group **${gid}**. Only the group **owner** can add members.`,
+      message: `Sign **${txs.length}** addMember tx(s) for group **${gid}**.`,
       transactions: txs,
     };
   }
@@ -655,36 +669,39 @@ export async function adminFromIntent(
     if (gate) return { kind: "clarify", question: gate };
     const gid = parseGroupId(intent.groupId);
     if (gid == null) {
-      return {
-        kind: "clarify",
-        question:
-          "Say which group id, e.g. **remove @mack from group 3**.",
-      };
+      return { kind: "clarify", question: "Say which group id, e.g. **remove @mack from group 3**." };
     }
     const handles = intent.members ?? [];
     if (handles.length === 0) {
-      return {
-        kind: "clarify",
-        question: "Name who to remove, e.g. **remove @mack from group 3**.",
-      };
+      return { kind: "clarify", question: "Name who to remove, e.g. **remove @mack from group 3**." };
     }
-    const txs: EncodedTxJson[] = [];
+    const resolvedRm: { username: string; address: `0x${string}` }[] = [];
     for (const h of handles) {
       const r = await deps.resolveUsername(h);
       if (!r.ok) {
-        return {
-          kind: "clarify",
-          question: `Cannot resolve @${r.username}: ${r.reason ?? "unknown"}`,
-        };
+        return { kind: "clarify", question: `Cannot resolve @${r.username}: ${r.reason ?? "unknown"}` };
       }
-      txs.push(
-        encodedCallToJson(encodeRemoveMember(gid, r.address)),
-      );
+      resolvedRm.push({ username: r.username, address: r.address });
     }
+    // Agent-executed path
+    const rmAgentWallet = tryGetAgentWallet();
+    if (rmAgentWallet && deps.mode === "chain") {
+      try {
+        for (const m of resolvedRm) {
+          const c = encodeRemoveMember(gid, m.address);
+          await agentSendTx(c.to as `0x${string}`, c.data as `0x${string}`, 0n);
+        }
+        const names = resolvedRm.map(m => `@${m.username}`).join(", ");
+        return { kind: "info", message: `✅ Removed ${names} from group **${gid}**.` };
+      } catch (err) {
+        return { kind: "clarify", question: `Agent could not remove member: ${err instanceof Error ? err.message : String(err)}` };
+      }
+    }
+    const rmTxs = resolvedRm.map(m => encodedCallToJson(encodeRemoveMember(gid, m.address)));
     return {
       kind: "info",
-      message: `Sign **${txs.length}** GroupRegistry.removeMember tx(s) for group **${gid}**. Only the group **owner** can remove members.`,
-      transactions: txs,
+      message: `Sign **${rmTxs.length}** removeMember tx(s) for group **${gid}**.`,
+      transactions: rmTxs,
     };
   }
   if (intent.action === "CANCEL_GROUP") {
@@ -739,6 +756,7 @@ export async function adminFromIntent(
     const name = intent.groupName?.trim();
     const mem = intent.members ?? [];
     if (!name && mem.length > 0) {
+      setPendingGroupMembers(sessionId ?? "", mem);
       return {
         kind: "clarify",
         question: `What do you want to name this group?`,
@@ -792,6 +810,81 @@ export async function adminFromIntent(
         kind: "clarify",
         question: `Could not fetch balance: ${e instanceof Error ? e.message : String(e)}`,
       };
+    }
+  }
+
+  if (intent.action === "TX_HISTORY") {
+    if (!wallet) {
+      return { kind: "info", message: "Connect your wallet to view your transaction history." };
+    }
+    if (deps.mode !== "chain" || !deps.publicClient) {
+      return { kind: "info", message: "Transaction history requires an RPC connection." };
+    }
+    try {
+      const USDM = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as `0x${string}`;
+      const USDC = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C" as `0x${string}`;
+      const TRANSFER_EVENT = {
+        name: "Transfer",
+        type: "event" as const,
+        inputs: [
+          { name: "from",  type: "address" as const, indexed: true  },
+          { name: "to",    type: "address" as const, indexed: true  },
+          { name: "value", type: "uint256" as const, indexed: false },
+        ],
+      };
+
+      const latestBlock = await deps.publicClient.getBlockNumber().catch(() => 0n);
+      const fromBlock   = latestBlock > 50_000n ? latestBlock - 50_000n : 0n;
+
+      const [usdmSent, usdmReceived, usdcSent, usdcReceived] = await Promise.all([
+        deps.publicClient.getLogs({ address: USDM, event: TRANSFER_EVENT, args: { from: wallet }, fromBlock, toBlock: "latest" }).catch(() => []),
+        deps.publicClient.getLogs({ address: USDM, event: TRANSFER_EVENT, args: { to:   wallet }, fromBlock, toBlock: "latest" }).catch(() => []),
+        deps.publicClient.getLogs({ address: USDC, event: TRANSFER_EVENT, args: { from: wallet }, fromBlock, toBlock: "latest" }).catch(() => []),
+        deps.publicClient.getLogs({ address: USDC, event: TRANSFER_EVENT, args: { to:   wallet }, fromBlock, toBlock: "latest" }).catch(() => []),
+      ]);
+
+      type RawLog = { transactionHash?: string | null; args?: Record<string, unknown>; blockNumber?: bigint | null };
+
+      const toItem = (log: RawLog, token: "USDC" | "USDm", direction: "sent" | "received") => {
+        const hash = log.transactionHash ?? "";
+        const args = log.args ?? {};
+        const rawValue = typeof args["value"] === "bigint" ? args["value"] : 0n;
+        const decimals  = token === "USDC" ? 6 : 18;
+        const amount    = (Number(rawValue) / 10 ** decimals).toLocaleString(undefined, { maximumFractionDigits: 4 });
+        const other     = direction === "sent"
+          ? (typeof args["to"]   === "string" ? args["to"]   : "")
+          : (typeof args["from"] === "string" ? args["from"] : "");
+        const short     = typeof other === "string" && other.length > 10
+          ? `${other.slice(0, 6)}…${other.slice(-4)}`
+          : String(other);
+        return {
+          hash,
+          direction,
+          amount: `${amount} ${token}`,
+          token,
+          counterparty: short,
+          explorerUrl: `https://celoscan.io/tx/${hash}`,
+          blockNumber: log.blockNumber ?? 0n,
+        };
+      };
+
+      const all = [
+        ...usdmSent.map(l => toItem(l as RawLog, "USDm", "sent")),
+        ...usdmReceived.map(l => toItem(l as RawLog, "USDm", "received")),
+        ...usdcSent.map(l => toItem(l as RawLog, "USDC", "sent")),
+        ...usdcReceived.map(l => toItem(l as RawLog, "USDC", "received")),
+      ]
+        .sort((a, b) => Number(b.blockNumber - a.blockNumber))
+        .slice(0, 10)
+        .map(({ blockNumber: _b, ...rest }) => rest);
+
+      if (all.length === 0) {
+        return { kind: "info", message: "No recent USDC or USDm transactions found for your wallet." };
+      }
+
+      return { kind: "tx_history", items: all };
+    } catch (e) {
+      return { kind: "info", message: `Could not load transactions: ${e instanceof Error ? e.message : String(e)}` };
     }
   }
 
@@ -1013,6 +1106,30 @@ export async function handleUserMessage(
 ): Promise<ChatResponse> {
   const t = message.trim();
 
+  // ── Pending group name ────────────────────────────────────────────────────
+  // User was asked "What do you want to name this group?" — treat next message as name.
+  const pendingGroupMembers = getPendingGroupMembers(sessionId);
+  if (pendingGroupMembers && !CONFIRM_RE.test(t) && !CANCEL_RE.test(t)) {
+    const groupName = t.replace(/^["']|["']$/g, "").trim(); // strip optional quotes
+    setPendingGroupMembers(sessionId, null);
+    if (groupName) {
+      const fakeIntent: ParsedIntent = {
+        kind: "admin",
+        action: "CREATE_GROUP",
+        groupName,
+        members: pendingGroupMembers,
+      };
+      const a = await adminFromIntent(fakeIntent, deps, walletAddress, t, sessionId);
+      if (a.kind === "clarify") return { type: "clarify", question: a.question };
+      if (a.kind === "tx_history") return { type: "tx_history", items: a.items };
+      return {
+        type: "info",
+        message: a.message,
+        ...(a.transactions?.length ? { transactions: a.transactions } : {}),
+      };
+    }
+  }
+
   if (CONFIRM_RE.test(t)) {
     // ── Check yield deposit confirmation first ────────────────────────────
     const pendingYield = getPendingYieldDeposit(sessionId);
@@ -1166,9 +1283,12 @@ export async function handleUserMessage(
   }
 
   if (intent.kind === "admin") {
-    const a = await adminFromIntent(intent, deps, walletAddress, t);
+    const a = await adminFromIntent(intent, deps, walletAddress, t, sessionId);
     if (a.kind === "clarify") {
       return { type: "clarify", question: a.question };
+    }
+    if (a.kind === "tx_history") {
+      return { type: "tx_history", items: a.items };
     }
     return {
       type: "info",

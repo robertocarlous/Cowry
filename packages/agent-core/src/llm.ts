@@ -21,7 +21,7 @@ const SYSTEM = `You are Cowry's intent parser. Output ONLY valid JSON matching t
 - Deposit (no vault specified): {"kind":"earn","action":"DEPOSIT_YIELD","amount":number,"vaultIndex":1}
 - Show yield positions / what am I earning / my Morpho balance: {"kind":"earn","action":"VIEW_POSITIONS"}
 - Check balance / how much do I have / my USDm balance / my USDC balance: {"kind":"admin","action":"BALANCE"}
-- My transactions / transaction history / recent payments: {"kind":"admin","action":"BALANCE"}
+- My transactions / transaction history / recent payments / what did I send: {"kind":"admin","action":"TX_HISTORY"}
 - Greetings / general chat / questions about Cowry: {"kind":"admin","action":"CHAT"}
 
 Rules: amounts are numbers (user may say dollars or $). Always set **token** to "USDC" or "USDm" when the user names a token; omit token only if they did not specify either. Usernames: a–z 0–9 only, 3–32 chars, no @ in JSON. For earn: vaultIndex is 1-based integer.`;

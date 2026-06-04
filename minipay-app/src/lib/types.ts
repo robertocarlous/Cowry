@@ -47,7 +47,21 @@ export type ChatResponse =
       explorerUrl: string;
       /** Agent wallet address that executed the tx */
       agentAddress: string;
+    }
+  | {
+      /** Recent on-chain transaction history for the user's wallet. */
+      type: "tx_history";
+      items: TxHistoryItem[];
     };
+
+export type TxHistoryItem = {
+  hash: string;
+  direction: "sent" | "received";
+  amount: string;
+  token: "USDC" | "USDm";
+  counterparty: string;
+  explorerUrl: string;
+};
 
 // ── UI message model ──────────────────────────────────────────────────────────
 

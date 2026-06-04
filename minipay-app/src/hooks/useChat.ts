@@ -188,12 +188,13 @@ export function useChat(walletAddress: string | null) {
 
 function responseToText(r: ChatResponse): string {
   switch (r.type) {
-    case "clarify":   return r.question;
-    case "info":      return r.message;
-    case "cancelled": return r.message;
-    case "draft":     return r.preview;
-    case "tx_ready":  return r.preview;
-    case "tx_sent":   return `✅ Payment sent by Cowry AI agent!\n\n[View on CeloScan](${r.explorerUrl})`;
-    default:          return "...";
+    case "clarify":    return r.question;
+    case "info":       return r.message;
+    case "cancelled":  return r.message;
+    case "draft":      return r.preview;
+    case "tx_ready":   return r.preview;
+    case "tx_sent":    return `✅ Payment sent by Cowry AI agent!\n\n[View on CeloScan](${r.explorerUrl})`;
+    case "tx_history": return `Here are your last ${r.items.length} transaction${r.items.length === 1 ? "" : "s"}:`;
+    default:           return "...";
   }
 }
