@@ -44,6 +44,16 @@ const nextConfig = {
       ".mjs": [".mts", ".mjs"],
     };
 
+    // When webpack processes packages/agent-core/src/ it walks UP the directory
+    // tree to resolve bare imports like 'viem'. On Vercel this never reaches
+    // minipay-app/node_modules because packages/ is a sibling directory, not a
+    // child. Explicitly include minipay-app/node_modules so viem/openai/zod
+    // are always found.
+    config.resolve.modules = [
+      path.resolve(__dirname, "node_modules"),
+      ...(config.resolve.modules ?? ["node_modules"]),
+    ];
+
     return config;
   },
 };
