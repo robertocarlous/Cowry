@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:integration": "tsx scripts/integration-smoke.ts",
     "chat": "tsx scripts/chat-cli.ts",
-    "register:agent": "tsx scripts/register-self-agent.ts"
+    "register:agent": "tsx scripts/register-self-agent.ts",
+    "register:8004scan": "tsx scripts/register-8004scan.ts"
   },
   "dependencies": {
     "@cowry/agent-core": "file:../packages/agent-core/cowry-agent-core-0.1.0.tgz",
