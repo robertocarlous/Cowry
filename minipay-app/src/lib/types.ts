@@ -52,6 +52,17 @@ export type ChatResponse =
       /** Recent on-chain transaction history for the user's wallet. */
       type: "tx_history";
       items: TxHistoryItem[];
+    }
+  | {
+      /** Cross-border remittance quote awaiting user confirm (Paycrest). */
+      type: "remittance_quote";
+      preview: string;
+      recipientLabel: string;
+      sendAmount: string;
+      sendToken: "USDC";
+      receiveAmount: string;
+      receiveCurrency: string;
+      rateLabel: string;
     };
 
 export type TxHistoryItem = {

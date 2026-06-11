@@ -19,6 +19,7 @@ export function useChat(walletAddress: string | null) {
    */
   const [txLoading, setTxLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const addMessage = useCallback((msg: Omit<Message, "id" | "timestamp">) => {
     const full: Message = { ...msg, id: crypto.randomUUID(), timestamp: new Date() };
@@ -32,9 +33,9 @@ export function useChat(walletAddress: string | null) {
     addMessage({ role: "bot", text: botText, response });
   }, [addMessage]);
 
-  const fetchAgentResponse = useCallback(async (text: string) => {
+  const fetchAgentResponse = useCallback(async (text: string, signal?: AbortSignal) => {
     if (!walletAddress) throw new Error("Wallet not connected");
-    return chat(text, walletAddress, getSessionId());
+    return chat(text, walletAddress, getSessionId(), signal);
   }, [walletAddress]);
 
   const send = useCallback(
@@ -44,15 +45,18 @@ export function useChat(walletAddress: string | null) {
       addMessage({ role: "user", text });
       setLoading(true);
 
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       try {
-        const response = await fetchAgentResponse(text);
+        const response = await fetchAgentResponse(text, controller.signal);
 
         // ── Agent already sent the tx on-chain ─────────────────────────────
         // No signing needed — just show the success message with the explorer link.
         if (response.type === "tx_sent") {
           addMessage({
             role: "bot",
-            text: `✅ Payment sent by Cowry AI agent!\n\n[View on CeloScan](${response.explorerUrl})`,
+            text: "✅ Payment sent by Cowry AI agent!",
             response,
           });
           return;
@@ -60,16 +64,26 @@ export function useChat(walletAddress: string | null) {
 
         appendBotResponse(response);
       } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") {
+          addMessage({ role: "bot", text: "Stopped." });
+          return;
+        }
         addMessage({
           role: "bot",
           text: `⚠️ ${e instanceof Error ? e.message : "Something went wrong"}`,
         });
       } finally {
+        abortControllerRef.current = null;
         setLoading(false);
       }
     },
     [walletAddress, loading, addMessage, fetchAgentResponse, appendBotResponse],
   );
+
+  /** Abort the in-flight chat request triggered by send(). */
+  const stop = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
 
   /** Called when user taps Confirm on a draft card */
   const confirm = useCallback(async () => {
@@ -183,7 +197,7 @@ export function useChat(walletAddress: string | null) {
     addMessage({ role: "bot", text });
   }, [addMessage]);
 
-  return { messages, loading, txLoading, send, confirm, cancel, signAndSend, addBotMessage, bottomRef };
+  return { messages, loading, txLoading, send, stop, confirm, cancel, signAndSend, addBotMessage, bottomRef };
 }
 
 function responseToText(r: ChatResponse): string {
@@ -193,8 +207,9 @@ function responseToText(r: ChatResponse): string {
     case "cancelled":  return r.message;
     case "draft":      return r.preview;
     case "tx_ready":   return r.preview;
-    case "tx_sent":    return `✅ Payment sent by Cowry AI agent!\n\n[View on CeloScan](${r.explorerUrl})`;
+    case "tx_sent":    return "✅ Payment sent by Cowry AI agent!";
     case "tx_history": return `Here are your last ${r.items.length} transaction${r.items.length === 1 ? "" : "s"}:`;
+    case "remittance_quote": return r.preview;
     default:           return "...";
   }
 }

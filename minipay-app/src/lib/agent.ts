@@ -6,11 +6,12 @@ function base(): string {
   return process.env.NEXT_PUBLIC_AGENT_URL ?? "/api";
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${base()}${path}`, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify(body),
+    signal,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({})) as { error?: string };
@@ -31,8 +32,9 @@ export function chat(
   message:       string,
   walletAddress: string,
   sessionId:     string,
+  signal?:       AbortSignal,
 ): Promise<ChatResponse> {
-  return post("/chat", { message, walletAddress, sessionId });
+  return post("/chat", { message, walletAddress, sessionId }, signal);
 }
 
 // ── Cross-chain send (LI.FI; Celo → other chain USDC) ───────────────────────

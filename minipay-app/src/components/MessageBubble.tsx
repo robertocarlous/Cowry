@@ -2,6 +2,7 @@
 import type { Message } from "@/lib/types";
 import { TransactionCard } from "./TransactionCard";
 import { TxHistoryCard } from "./TxHistoryCard";
+import { RemittanceQuoteCard } from "./RemittanceQuoteCard";
 
 interface Props {
   message:    Message;
@@ -98,6 +99,20 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
         {/* Transaction history */}
         {r?.type === "tx_history" && (
           <TxHistoryCard items={r.items} />
+        )}
+
+        {/* Cross-border remittance quote */}
+        {r?.type === "remittance_quote" && (
+          <RemittanceQuoteCard
+            recipientLabel={r.recipientLabel}
+            sendAmount={r.sendAmount}
+            sendToken={r.sendToken}
+            receiveAmount={r.receiveAmount}
+            receiveCurrency={r.receiveCurrency}
+            rateLabel={r.rateLabel}
+            onConfirm={onConfirm}
+            onCancel={onCancel}
+          />
         )}
 
         <span className="text-[10px] text-cowry-border px-1">

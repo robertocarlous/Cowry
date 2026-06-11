@@ -6,15 +6,15 @@ import type { ParsedIntent } from "./schemas.js";
 export function createMessageParser(options?: {
   /** Groq client (OpenAI SDK with Groq base URL). Injected in tests. */
   llmClient?: OpenAI | null;
-}): (text: string) => Promise<ParsedIntent> {
+}): (text: string, signal?: AbortSignal) => Promise<ParsedIntent> {
   const client = options?.llmClient ?? createGroqClient();
 
-  return async (text: string) => {
+  return async (text: string, signal?: AbortSignal) => {
     const ruled = ruleParse(text);
     if (ruled) return ruled;
     if (client) {
       try {
-        return await parseWithLlm(client, text);
+        return await parseWithLlm(client, text, signal);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         return { kind: "unknown", rawSummary: msg };

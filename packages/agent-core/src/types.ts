@@ -1,5 +1,6 @@
 import type { PaymentAction } from "./schemas.js";
 import type { CachedOpportunity, PendingYieldDeposit } from "./lifi/types.js";
+import type { PendingRemittance, PendingRemittanceQuote } from "./remittance/types.js";
 
 // ── WhatsApp / Webhook types ──────────────────────────────────────────────────
 
@@ -205,6 +206,17 @@ export type ChatResponse =
       /** Recent on-chain transaction history for the user's wallet. */
       type: "tx_history";
       items: TxHistoryItem[];
+    }
+  | {
+      /** Cross-border remittance quote awaiting user confirm (Paycrest). */
+      type: "remittance_quote";
+      preview: string;
+      recipientLabel: string;
+      sendAmount: string;
+      sendToken: "USDC";
+      receiveAmount: string;
+      receiveCurrency: string;
+      rateLabel: string;
     };
 
 export type TxHistoryItem = {
@@ -224,4 +236,8 @@ export type SessionState = {
   pendingYieldDeposit?: PendingYieldDeposit;
   /** Members collected for a group whose name is still pending from user */
   pendingGroupMembers?: string[];
+  /** Remittance details collected so far, awaiting more slots from user */
+  pendingRemittance?: PendingRemittance;
+  /** Fully-resolved remittance quote awaiting user confirm */
+  pendingRemittanceQuote?: PendingRemittanceQuote;
 };
