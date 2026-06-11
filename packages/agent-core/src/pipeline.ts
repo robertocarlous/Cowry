@@ -43,6 +43,10 @@ import {
   getPendingYieldDeposit,
   setPendingGroupMembers,
   getPendingGroupMembers,
+  setPendingRemittance,
+  getPendingRemittance,
+  setPendingRemittanceQuote,
+  getPendingRemittanceQuote,
 } from "./state.js";
 import type { ChatResponse, EncodedTxJson, TxHistoryItem } from "./types.js";
 import type { ResolutionDeps } from "./deps/types.js";
@@ -54,6 +58,16 @@ import {
 } from "./lifi/earnClient.js";
 import { getDepositQuote, estimateDailyEarnings } from "./lifi/composerClient.js";
 import type { PendingYieldDeposit } from "./lifi/types.js";
+import { resolveCountry, getCurrencySymbol, SUPPORTED_COUNTRIES } from "./remittance/countries.js";
+import {
+  getInstitutions,
+  verifyAccount,
+  createOffRampOrder,
+  type Institution,
+} from "./remittance/paycrestClient.js";
+import { findInstitutionMatches } from "./remittance/institutionMatch.js";
+import { findRecipientByNickname, decryptAccountIdentifier } from "./remittance/recipients.js";
+import type { PendingRemittance, PendingRemittanceQuote } from "./remittance/types.js";
 
 function parseGroupId(
   raw: string | number | undefined | null,
@@ -584,6 +598,7 @@ export async function adminFromIntent(
   wallet: `0x${string}` | undefined,
   rawText?: string,
   sessionId?: string,
+  signal?: AbortSignal,
 ): Promise<AdminIntentResult> {
   if (intent.kind !== "admin") {
     return { kind: "clarify", question: "Not an admin command." };
@@ -754,19 +769,16 @@ export async function adminFromIntent(
     return {
       kind: "info",
       message: [
-        "Cowry — **USDC** & **USDm** payments via CowryPay on Celo:",
+        "Cowry — send money abroad, bridge crypto, and earn on Celo:",
+        "• **Send $50 to a bank account in Nigeria** — cross-border payout via Paycrest, recipient doesn't need Cowry",
+        "• **Send $20 to mobile money in Kenya, 0712345678** — same idea for mobile money",
+        "• **Bridge USDC** from Ethereum, Base, Arbitrum and more to Celo",
         "• **register as yourname** — links @name to your wallet (sign UsernameRegistry.register)",
         "• **approve 500 USDC for cowry** or **approve 500 USDm for cowry**",
-        "• **send 20 USDC to @alice** or **send 5 USDm to @bob**",
-        "• **send 10 USDC to everyone in Friends** — same amount per group member",
-        "• **split 30 USDC among @alice, @bob, @carol**",
-        "• **split 100 USDm across group Friends** — total split (**payGroupSplit**)",
-        "• **add @mack to group 3** / **remove @mack from group 3** / **cancel group 3** (chain only; owner-only)",
-        "• create group Team with @alice, @bob",
-        "• list my groups",
+        "• **show me yield options** / **deposit 100 USDC** — earn via Morpho vaults",
+        "• **my balance** / **my transactions**",
         "• **GET /tx/0x…** — receipt status after you broadcast",
-        "On-chain: pass **walletAddress**; register before paying; balance + allowance checked.",
-        "After a payment draft: **confirm** or **cancel**.",
+        "After a quote or draft: **confirm** or **cancel**.",
       ].join("\n"),
     };
   }
@@ -911,7 +923,7 @@ export async function adminFromIntent(
     const llm = createGroqClient();
     if (llm) {
       try {
-        const reply = await generateChatReply(llm, rawText ?? "Hello");
+        const reply = await generateChatReply(llm, rawText ?? "Hello", undefined, signal);
         return { kind: "info", message: reply };
       } catch {
         // fall through to default
@@ -920,7 +932,7 @@ export async function adminFromIntent(
     return {
       kind: "info",
       message:
-        "Hi! I'm Cowry — your AI payment assistant on Celo.\n\nTry: **send 10 USDm to @alice**, **list my groups**, **my balance**, or say **help** for all commands.",
+        "Hi! I'm Cowry — your AI payment assistant on Celo.\n\nTry: **send $50 to a bank account in Nigeria**, **bridge USDC to Celo**, **my balance**, or say **help** for all commands.",
     };
   }
 
@@ -1110,10 +1122,440 @@ export async function earnFromIntent(
   return { type: "clarify", question: "Unknown earn command." };
 }
 
+// ── Remittance / cross-border (Paycrest) handler ─────────────────────────────
+
+type RemittanceSlots = {
+  amount: number;
+  countryCode: string;
+  currencyCode: string;
+  institutionCode: string;
+  institutionName: string;
+  accountIdentifier: string;
+  recipientNickname?: string;
+};
+
+/**
+ * Verify the account, lock a real rate by creating a Paycrest order, store
+ * the quote (including the order's receiveAddress) in session state, and
+ * return a `remittance_quote` response.
+ *
+ * Paycrest's public `/rates` estimate endpoint doesn't support the celo
+ * network, so we lock the rate up front via `createOffRampOrder` instead —
+ * its `rate`/`receiveAddress`/`validUntil` are reused directly on confirm
+ * (re-created only if `validUntil` has passed by then).
+ */
+async function buildRemittanceQuote(
+  sessionId: string,
+  slots: RemittanceSlots,
+  walletAddress: `0x${string}`,
+  signal?: AbortSignal,
+): Promise<ChatResponse> {
+  let accountName: string;
+  try {
+    accountName = await verifyAccount(slots.institutionCode, slots.accountIdentifier, signal);
+  } catch (e) {
+    // Keep the rest of the slots but ask the user to re-check the account number.
+    setPendingRemittance(sessionId, {
+      amount: slots.amount,
+      countryCode: slots.countryCode,
+      currencyCode: slots.currencyCode,
+      institutionCode: slots.institutionCode,
+      institutionName: slots.institutionName,
+    });
+    return {
+      type: "clarify",
+      question: `I couldn't verify that account (${
+        e instanceof Error ? e.message : String(e)
+      }). Please double-check the account or phone number and send it again.`,
+    };
+  }
+
+  const resolvedAccountName = accountName.toUpperCase() === "OK" ? "Recipient" : accountName;
+
+  let order;
+  try {
+    order = await createOffRampOrder({
+      amount: slots.amount,
+      network: "celo",
+      fromCurrency: "USDC",
+      refundAddress: walletAddress,
+      toCurrency: slots.currencyCode,
+      institution: slots.institutionCode,
+      accountIdentifier: slots.accountIdentifier,
+      accountName: resolvedAccountName,
+      memo: "Cowry remittance",
+    }, signal);
+  } catch (e) {
+    setPendingRemittance(sessionId, null);
+    return {
+      type: "clarify",
+      question: `Couldn't get a payout quote right now (${
+        e instanceof Error ? e.message : String(e)
+      }). Please try again in a moment.`,
+    };
+  }
+
+  const rateNum = Number(order.rate);
+  const receiveAmount = slots.amount * rateNum;
+  const estimatedReceive = receiveAmount.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const last4 = slots.accountIdentifier.slice(-4);
+  const displayLabel = `${slots.institutionName} ••••${last4}`;
+  const symbol = getCurrencySymbol(slots.currencyCode);
+
+  const quote: PendingRemittanceQuote = {
+    amount: slots.amount,
+    countryCode: slots.countryCode,
+    currencyCode: slots.currencyCode,
+    institutionCode: slots.institutionCode,
+    institutionName: slots.institutionName,
+    accountIdentifier: slots.accountIdentifier,
+    accountName: resolvedAccountName,
+    estimatedReceive,
+    displayLabel,
+    recipientNickname: slots.recipientNickname,
+    orderId: order.id,
+    receiveAddress: order.receiveAddress,
+    rate: order.rate,
+    validUntil: order.validUntil,
+  };
+
+  setPendingRemittance(sessionId, null);
+  setPendingRemittanceQuote(sessionId, quote);
+
+  const recipientLabel = `${resolvedAccountName} (${displayLabel})`;
+  const rateLabel = `1 USD ≈ ${symbol}${rateNum.toLocaleString(undefined, { maximumFractionDigits: 2 })} (locked for ~1hr)`;
+
+  const preview =
+    `🌍 **Cross-Border Payment**\n` +
+    `To: ${recipientLabel}\n` +
+    `They get: ${symbol}${estimatedReceive} ${slots.currencyCode}\n` +
+    `You send: ${slots.amount} USDC\n` +
+    `Rate: ${rateLabel}\n\n` +
+    `Reply **confirm** to send, or **cancel** to abort.`;
+
+  return {
+    type: "remittance_quote",
+    preview,
+    recipientLabel,
+    sendAmount: String(slots.amount),
+    sendToken: "USDC",
+    receiveAmount: estimatedReceive,
+    receiveCurrency: slots.currencyCode,
+    rateLabel,
+  };
+}
+
+/**
+ * Continue collecting remittance details across turns: country -> institution
+ * -> account number, in that order. `answer` is the user's reply to whichever
+ * question was asked last (undefined when called with a fully-formed intent).
+ */
+async function continueRemittanceSlotFilling(
+  sessionId: string,
+  pending: PendingRemittance,
+  walletAddress: `0x${string}`,
+  answer?: string,
+  signal?: AbortSignal,
+): Promise<ChatResponse> {
+  let unconsumed = answer?.trim() || undefined;
+
+  // 1. Country / currency
+  if (!pending.currencyCode) {
+    if (unconsumed) {
+      const country = resolveCountry(unconsumed);
+      unconsumed = undefined;
+      if (country) {
+        pending.countryCode = country.countryCode;
+        pending.currencyCode = country.currencyCode;
+      } else {
+        setPendingRemittance(sessionId, pending);
+        return {
+          type: "clarify",
+          question: `I didn't recognize that country. Which country is the recipient in? (${SUPPORTED_COUNTRIES.join(", ")})`,
+        };
+      }
+    } else {
+      setPendingRemittance(sessionId, pending);
+      return {
+        type: "clarify",
+        question: `Which country is the recipient in? (${SUPPORTED_COUNTRIES.join(", ")})`,
+      };
+    }
+  }
+
+  // 2. Institution (bank / mobile money provider)
+  if (!pending.institutionCode) {
+    // If we previously offered a numbered list, check whether this reply
+    // selects from it (e.g. "3").
+    if (pending.institutionCandidates && unconsumed) {
+      const idx = parseInt(unconsumed.trim(), 10);
+      const choice = pending.institutionCandidates[idx - 1];
+      if (Number.isInteger(idx) && choice) {
+        pending.institutionCode = choice.code;
+        pending.institutionName = choice.name;
+        pending.institutionCandidates = undefined;
+        unconsumed = undefined;
+      } else {
+        // Not a valid selection — treat as a fresh free-text query.
+        pending.institutionCandidates = undefined;
+      }
+    }
+
+    if (!pending.institutionCode) {
+      if (!pending.institutionQuery) {
+        if (unconsumed) {
+          pending.institutionQuery = unconsumed;
+          unconsumed = undefined;
+        } else {
+          setPendingRemittance(sessionId, pending);
+          return {
+            type: "clarify",
+            question: "What's the bank or mobile money provider? (e.g. GTBank, Access Bank, MTN MoMo)",
+          };
+        }
+      }
+
+      let institutions: Institution[];
+      try {
+        institutions = await getInstitutions(pending.currencyCode, signal);
+      } catch (e) {
+        setPendingRemittance(sessionId, pending);
+        return {
+          type: "clarify",
+          question: `Could not look up banks/providers right now (${
+            e instanceof Error ? e.message : String(e)
+          }). Please try again.`,
+        };
+      }
+
+      const attempted = pending.institutionQuery;
+      const matches = findInstitutionMatches(attempted, institutions);
+      if (matches.length === 1) {
+        pending.institutionCode = matches[0]!.code;
+        pending.institutionName = matches[0]!.name;
+        pending.institutionQuery = undefined;
+      } else if (matches.length === 0) {
+        pending.institutionQuery = undefined;
+        pending.institutionCandidates = institutions.map((i) => ({ name: i.name, code: i.code }));
+        setPendingRemittance(sessionId, pending);
+        const list = institutions.map((i, idx) => `${idx + 1}. ${i.name}`).join("\n");
+        return {
+          type: "clarify",
+          question: `I couldn't find "${attempted}" for ${pending.currencyCode}. Reply with a number:\n${list}`,
+        };
+      } else {
+        pending.institutionQuery = undefined;
+        pending.institutionCandidates = matches.map((m) => ({ name: m.name, code: m.code }));
+        setPendingRemittance(sessionId, pending);
+        const list = matches.map((m, idx) => `${idx + 1}. ${m.name}`).join("\n");
+        return {
+          type: "clarify",
+          question: `I found a few matches for "${attempted}". Reply with a number:\n${list}`,
+        };
+      }
+    }
+  }
+
+  // 3. Account / phone number
+  if (!pending.accountIdentifier) {
+    if (unconsumed) {
+      pending.accountIdentifier = unconsumed;
+      unconsumed = undefined;
+    } else {
+      setPendingRemittance(sessionId, pending);
+      return {
+        type: "clarify",
+        question: "What's the account number (or phone number for mobile money)?",
+      };
+    }
+  }
+
+  return buildRemittanceQuote(
+    sessionId,
+    {
+      amount: pending.amount,
+      countryCode: pending.countryCode!,
+      currencyCode: pending.currencyCode!,
+      institutionCode: pending.institutionCode!,
+      institutionName: pending.institutionName!,
+      accountIdentifier: pending.accountIdentifier,
+    },
+    walletAddress,
+    signal,
+  );
+}
+
+export async function remittanceFromIntent(
+  intent: ParsedIntent,
+  walletAddress: `0x${string}` | undefined,
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<ChatResponse> {
+  if (intent.kind !== "remittance") {
+    return { type: "clarify", question: "Not a remittance command." };
+  }
+
+  if (!walletAddress) {
+    return {
+      type: "clarify",
+      question: "Connect your wallet so Cowry can send this payment on your behalf.",
+    };
+  }
+
+  const existing = getPendingRemittance(sessionId);
+  const amount = intent.amount ?? existing?.amount;
+  if (amount == null || !(amount > 0)) {
+    return {
+      type: "clarify",
+      question: "How much USDC would you like to send abroad? e.g. **send $50 to a bank account in Nigeria**",
+    };
+  }
+
+  // ── Saved recipient fast path ───────────────────────────────────────────
+  if (intent.recipientNickname && !existing) {
+    const saved = await findRecipientByNickname(walletAddress, intent.recipientNickname);
+    if (saved) {
+      return buildRemittanceQuote(
+        sessionId,
+        {
+          amount,
+          countryCode: saved.countryCode,
+          currencyCode: saved.currencyCode,
+          institutionCode: saved.institutionCode,
+          institutionName: saved.institutionName,
+          accountIdentifier: decryptAccountIdentifier(saved),
+          recipientNickname: saved.nickname,
+        },
+        walletAddress,
+        signal,
+      );
+    }
+  }
+
+  const pending: PendingRemittance = {
+    amount,
+    countryCode: existing?.countryCode,
+    currencyCode: existing?.currencyCode,
+    institutionQuery: existing?.institutionQuery,
+    institutionCode: existing?.institutionCode,
+    institutionName: existing?.institutionName,
+    accountIdentifier: existing?.accountIdentifier,
+  };
+
+  if (intent.countryHint && !pending.currencyCode) {
+    const country = resolveCountry(intent.countryHint);
+    if (country) {
+      pending.countryCode = country.countryCode;
+      pending.currencyCode = country.currencyCode;
+    }
+  }
+  if (intent.institutionHint && !pending.institutionCode && !pending.institutionQuery) {
+    pending.institutionQuery = intent.institutionHint;
+  }
+  if (intent.accountIdentifier && !pending.accountIdentifier) {
+    pending.accountIdentifier = intent.accountIdentifier;
+  }
+
+  return continueRemittanceSlotFilling(sessionId, pending, walletAddress, undefined, signal);
+}
+
+/**
+ * Lock the real exchange rate via Paycrest, then have the agent broadcast
+ * USDC -> Paycrest's receiveAddress on the sender's behalf.
+ */
+async function confirmRemittance(
+  quote: PendingRemittanceQuote,
+  deps: ResolutionDeps,
+  walletAddress: `0x${string}`,
+  signal?: AbortSignal,
+): Promise<ChatResponse> {
+  const usdc = getTokenBySymbol("USDC");
+  const amountBaseUnits = toBaseUnits(quote.amount, usdc.decimals);
+
+  if (deps.mode === "chain" && deps.publicClient) {
+    const plan: DraftTxPlan = {
+      mode: "pay",
+      token: usdc.address,
+      to: walletAddress, // unused by checkUsdcReadiness; placeholder to satisfy the type
+      amountHuman: quote.amount,
+      amountBaseUnits: amountBaseUnits.toString(),
+    };
+    const block = await maybeTokenReadinessBlock(deps, walletAddress, plan);
+    if (block) return block;
+  }
+
+  const agentWallet = tryGetAgentWallet();
+  if (!agentWallet || deps.mode !== "chain") {
+    return {
+      type: "clarify",
+      question: "The Cowry agent wallet is not configured — cannot execute this payment automatically.",
+    };
+  }
+
+  // The quote already locked an order (with receiveAddress) when it was
+  // built. Reuse it unless its validUntil window has passed, in which case
+  // create a fresh order to get a current receiveAddress/rate.
+  let order: { id: string; receiveAddress: string };
+  if (new Date(quote.validUntil).getTime() > Date.now()) {
+    order = { id: quote.orderId, receiveAddress: quote.receiveAddress };
+  } else {
+    try {
+      order = await createOffRampOrder({
+        amount: quote.amount,
+        network: "celo",
+        fromCurrency: "USDC",
+        refundAddress: walletAddress,
+        toCurrency: quote.currencyCode,
+        institution: quote.institutionCode,
+        accountIdentifier: quote.accountIdentifier,
+        accountName: quote.accountName,
+        memo: "Cowry remittance",
+      }, signal);
+    } catch (e) {
+      return {
+        type: "clarify",
+        question: `Could not create the payout order (${
+          e instanceof Error ? e.message : String(e)
+        }). Reply **confirm** to retry, or **cancel** to abort.`,
+      };
+    }
+  }
+
+  try {
+    const call = encodePayOnBehalf(
+      walletAddress,
+      usdc.address,
+      order.receiveAddress as `0x${string}`,
+      amountBaseUnits,
+    );
+    const txHash = await agentSendTx(call.to, call.data, 0n);
+    const explorerUrl = `https://celoscan.io/tx/${txHash}`;
+    const symbol = getCurrencySymbol(quote.currencyCode);
+    const preview =
+      `✅ Sent! ${quote.accountName} will receive **${symbol}${quote.estimatedReceive} ${quote.currencyCode}** ` +
+      `in their ${quote.institutionName} account shortly.\n\n` +
+      `[View on CeloScan](${explorerUrl})\n` +
+      `Paycrest order: ${order.id}`;
+    return {
+      type: "tx_sent",
+      preview,
+      txHash,
+      explorerUrl,
+      agentAddress: agentWallet.address,
+    };
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    return {
+      type: "clarify",
+      question: `Order ${order.id} was created but the on-chain payment failed (${errMsg}). Please contact support with this order ID.`,
+    };
+  }
+}
+
 const CONFIRM_RE = /^(yes|y|confirm|ok|proceed|sure)\b/i;
 const CANCEL_RE = /^(no|cancel|stop|nope)\b/i;
 
-export type ParseMessageFn = (text: string) => Promise<ParsedIntent>;
+export type ParseMessageFn = (text: string, signal?: AbortSignal) => Promise<ParsedIntent>;
 
 export async function handleUserMessage(
   sessionId: string,
@@ -1121,6 +1563,7 @@ export async function handleUserMessage(
   deps: ResolutionDeps,
   parseFn: ParseMessageFn,
   walletAddress?: `0x${string}`,
+  signal?: AbortSignal,
 ): Promise<ChatResponse> {
   const t = message.trim();
 
@@ -1137,7 +1580,7 @@ export async function handleUserMessage(
         groupName,
         members: pendingGroupMembers,
       };
-      const a = await adminFromIntent(fakeIntent, deps, walletAddress, t, sessionId);
+      const a = await adminFromIntent(fakeIntent, deps, walletAddress, t, sessionId, signal);
       if (a.kind === "clarify") return { type: "clarify", question: a.question };
       if (a.kind === "tx_history") return { type: "tx_history", items: a.items };
       return {
@@ -1148,7 +1591,34 @@ export async function handleUserMessage(
     }
   }
 
+  // ── Pending remittance slot-filling ───────────────────────────────────────
+  // User was asked for a country / bank / account number — treat the next
+  // message as the answer to that question.
+  const pendingRemittance = getPendingRemittance(sessionId);
+  if (pendingRemittance && !CONFIRM_RE.test(t) && !CANCEL_RE.test(t)) {
+    if (!walletAddress) {
+      return {
+        type: "clarify",
+        question: "Connect your wallet so Cowry can prepare this payout.",
+      };
+    }
+    return continueRemittanceSlotFilling(sessionId, pendingRemittance, walletAddress, t, signal);
+  }
+
   if (CONFIRM_RE.test(t)) {
+    // ── Check remittance quote confirmation ───────────────────────────────
+    const pendingRemit = getPendingRemittanceQuote(sessionId);
+    if (pendingRemit) {
+      if (!walletAddress) {
+        return {
+          type: "clarify",
+          question: "Connect your wallet to confirm this remittance.",
+        };
+      }
+      setPendingRemittanceQuote(sessionId, null);
+      return confirmRemittance(pendingRemit, deps, walletAddress, signal);
+    }
+
     // ── Check yield deposit confirmation first ────────────────────────────
     const pendingYield = getPendingYieldDeposit(sessionId);
     if (pendingYield) {
@@ -1267,6 +1737,15 @@ export async function handleUserMessage(
   }
 
   if (CANCEL_RE.test(t)) {
+    // Clear remittance quote/slot-filling if pending
+    if (getPendingRemittanceQuote(sessionId)) {
+      setPendingRemittanceQuote(sessionId, null);
+      return { type: "cancelled", message: "Remittance cancelled. What next?" };
+    }
+    if (getPendingRemittance(sessionId)) {
+      setPendingRemittance(sessionId, null);
+      return { type: "cancelled", message: "Remittance cancelled. What next?" };
+    }
     // Clear yield deposit if pending
     const pendingYield = getPendingYieldDeposit(sessionId);
     if (pendingYield) {
@@ -1282,26 +1761,26 @@ export async function handleUserMessage(
     return { type: "info", message: "No active draft. Say **help** for examples." };
   }
 
-  const intent = await parseFn(t);
+  const intent = await parseFn(t, signal);
 
   if (intent.kind === "unknown") {
     // Try conversational LLM reply before showing the fallback error
     const llm = createGroqClient();
     if (llm) {
       try {
-        const reply = await generateChatReply(llm, t);
+        const reply = await generateChatReply(llm, t, undefined, signal);
         return { type: "info", message: reply };
       } catch { /* fall through */ }
     }
     return {
       type: "clarify",
       question:
-        "I didn't quite get that. Try **send $20 to @alice**, **list my groups**, **my balance**, or say **help** for all commands.",
+        "I didn't quite get that. Try **send $50 to a bank account in Nigeria**, **bridge USDC to Celo**, **my balance**, or say **help** for all commands.",
     };
   }
 
   if (intent.kind === "admin") {
-    const a = await adminFromIntent(intent, deps, walletAddress, t, sessionId);
+    const a = await adminFromIntent(intent, deps, walletAddress, t, sessionId, signal);
     if (a.kind === "clarify") {
       return { type: "clarify", question: a.question };
     }
@@ -1318,6 +1797,13 @@ export async function handleUserMessage(
   // ── LI.FI Earn intents ─────────────────────────────────────────────────────
   if (intent.kind === "earn") {
     return earnFromIntent(intent, sessionId, walletAddress);
+  }
+
+  // ── Remittance / cross-border intents ───────────────────────────────────────
+  // Independent of the @username payment flow — the recipient does not need
+  // a Cowry account, so this bypasses the isWalletRegistered gate below.
+  if (intent.kind === "remittance") {
+    return remittanceFromIntent(intent, walletAddress, sessionId, signal);
   }
 
   if (intent.kind === "payment") {

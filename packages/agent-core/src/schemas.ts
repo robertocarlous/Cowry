@@ -75,6 +75,20 @@ export const parsedIntentSchema = z.discriminatedUnion("kind", [
     chainName: z.string().optional(),
   }),
   z.object({
+    kind: z.literal("remittance"),
+    action: z.literal("SEND_REMITTANCE"),
+    /** Human USDC amount to send, e.g. 200 */
+    amount: z.number().positive().optional(),
+    /** Saved recipient nickname, e.g. "mom" */
+    recipientNickname: z.string().optional(),
+    /** Country/currency hint, e.g. "Nigeria" or "NGN" */
+    countryHint: z.string().optional(),
+    /** Bank or mobile money provider name, e.g. "GTBank" or "MTN MoMo" */
+    institutionHint: z.string().optional(),
+    /** Bank account number or mobile money phone number */
+    accountIdentifier: z.string().optional(),
+  }),
+  z.object({
     kind: z.literal("unknown"),
     rawSummary: z.string(),
   }),

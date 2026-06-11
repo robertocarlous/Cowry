@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       deps,
       parseMessage,
       wallet,
+      req.signal,
     );
     return NextResponse.json(out);
   } catch (e) {

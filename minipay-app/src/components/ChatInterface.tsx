@@ -6,27 +6,26 @@ import { useWallet }          from "@/hooks/useWallet";
 import { useChat }            from "@/hooks/useChat";
 import { MessageBubble }      from "./MessageBubble";
 import { CrossChainSendPanel } from "./CrossChainSendPanel";
-import { RegisterScreen }     from "./RegisterScreen";
 import { GrantAccessScreen }  from "./GrantAccessScreen";
 import { CommandMenu }        from "./CommandMenu";
 import type { Message }       from "@/lib/types";
 
 const SUGGESTIONS = [
+  "Send $50 to a bank account in Nigeria",
+  "Send $20 to mobile money in Kenya",
   "What's my balance",
-  "Send 5 USDC to @",
-  "Split 30 USDC among @",
-  "Create a group called ",
+  "Show my recent transactions",
 ];
 
 export function ChatInterface() {
   const {
     address, username, shortAddress,
-    isConnecting, walletError, onRegistered, onAccessGranted,
-    ensureCelo, wrongChain, isConnected, isRegistered, isChecking,
+    isConnecting, walletError, onAccessGranted,
+    ensureCelo, wrongChain, isConnected,
     hasGrantedAccess, isCheckingAccess,
   } = useWallet();
 
-  const { messages, loading, txLoading, send, confirm, cancel, signAndSend, addBotMessage, bottomRef } =
+  const { messages, loading, txLoading, send, stop, confirm, cancel, signAndSend, addBotMessage, bottomRef } =
     useChat(address ?? null);
 
   const [input,       setInput]       = useState("");
@@ -82,29 +81,14 @@ export function ChatInterface() {
     );
   }
 
-  // One quick on-chain read — show shell instead of a blank full-screen wait
-  if (isChecking) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-cowry-dark">
-        <div className="w-8 h-8 rounded-full border-2 border-cowry-blue border-t-transparent animate-spin" />
-        <p className="text-xs text-cowry-muted">Checking your Cowry name…</p>
-      </div>
-    );
-  }
-
-  // Registration gate — unregistered wallets never see chat first
-  if (isConnected && !isRegistered) {
-    return <RegisterScreen address={address!} onRegistered={onRegistered} />;
-  }
-
-  // Access gate — registered users who haven't authorized Cowry AI yet
+  // Access gate — wallets that haven't authorized Cowry AI yet
   // Show spinner while checking allowance, then grant screen if not yet granted
-  if (isConnected && isRegistered && (isCheckingAccess || !hasGrantedAccess)) {
+  if (isConnected && (isCheckingAccess || !hasGrantedAccess)) {
     if (isCheckingAccess) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-cowry-dark">
           <div className="w-8 h-8 rounded-full border-2 border-cowry-blue border-t-transparent animate-spin" />
-          <p className="text-xs text-cowry-muted">Checking Cowry AI access…</p>
+          <p className="text-xs text-cowry-muted">Checking access…</p>
         </div>
       );
     }
@@ -117,7 +101,7 @@ export function ChatInterface() {
     );
   }
 
-  // Main chat — registered users who have authorized Cowry AI
+  // Main chat — wallets that have authorized Cowry AI
   return (
     <div className="relative flex-1 flex flex-col overflow-hidden bg-cowry-dark">
 
@@ -241,13 +225,19 @@ export function ChatInterface() {
           className="flex-1 bg-cowry-card border border-cowry-border rounded-full px-4 py-2.5 text-sm text-white placeholder-cowry-muted outline-none focus:border-cowry-blue/50 disabled:opacity-50 transition-colors"
         />
         <button
-          onClick={handleSend}
-          disabled={!input.trim() || loading}
+          onClick={loading ? stop : handleSend}
+          disabled={!loading && !input.trim()}
           className="w-10 h-10 bg-cowry-blue rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-95 transition-all hover:bg-cowry-mint"
         >
-          <svg viewBox="0 0 24 24" className="w-5 h-5 fill-cowry-darker translate-x-0.5">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-          </svg>
+          {loading ? (
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-cowry-darker">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-cowry-darker translate-x-0.5">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            </svg>
+          )}
         </button>
       </div>
 

@@ -15,24 +15,17 @@ interface Category {
 
 const CATEGORIES: Category[] = [
   {
-    icon: "💸",
-    title: "Send Money",
+    icon: "🌍",
+    title: "Send Abroad",
     commands: [
-      { label: "Send USDC",               template: "Send 10 USDC to @",              desc: "Send USDC to anyone on Cowry" },
-      { label: "Send USDm",               template: "Send 10 USDm to @",              desc: "Send USDm to anyone on Cowry" },
-      { label: "Split a bill",            template: "Split 60 USDC among @",          desc: "Divide an amount equally among people" },
-      { label: "Pay everyone in a group", template: "Send 20 USDC to everyone in ",   desc: "Same amount to every group member" },
-      { label: "Split across a group",    template: "Split 120 USDC across group ",   desc: "Divide a total among all group members" },
+      { label: "Send to a bank account", template: "Send $50 to a bank account in ", desc: "Send money abroad — recipient doesn't need Cowry" },
     ],
   },
   {
-    icon: "👥",
-    title: "Groups",
+    icon: "↗️",
+    title: "Send from another chain",
     commands: [
-      { label: "Create a group",   template: "Create a group called ",        desc: "Start a new payment group with members" },
-      { label: "See my groups",    template: "Show my groups",                desc: "List all your groups and who's in them" },
-      { label: "Add someone",      template: "Add @ to my ",                  desc: "Add a new member to an existing group" },
-      { label: "Remove someone",   template: "Remove @ from my ",             desc: "Remove a member from a group" },
+      { label: "Bridge to Celo",    template: "",                             desc: "Send USDC from Ethereum, Base, Arbitrum and more" },
     ],
   },
   {
@@ -41,14 +34,6 @@ const CATEGORIES: Category[] = [
     commands: [
       { label: "Check my balance",  template: "What's my balance",            desc: "See how much USDC and USDm you have" },
       { label: "Recent payments",   template: "Show my recent transactions",  desc: "View your payment history" },
-      { label: "Claim a username",  template: "Register as ",                 desc: "Claim your unique @username on Cowry" },
-    ],
-  },
-  {
-    icon: "↗️",
-    title: "Send from another chain",
-    commands: [
-      { label: "Bridge to Celo",    template: "",                             desc: "Send USDC from Ethereum, Base, Arbitrum and more" },
     ],
   },
   {

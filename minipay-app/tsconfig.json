@@ -21,7 +21,9 @@
       "openai":  ["./node_modules/openai"],
       "openai/*":["./node_modules/openai/*"],
       "zod":     ["./node_modules/zod"],
-      "zod/*":   ["./node_modules/zod/*"]
+      "zod/*":   ["./node_modules/zod/*"],
+      "@upstash/redis":   ["./node_modules/@upstash/redis"],
+      "@upstash/redis/*": ["./node_modules/@upstash/redis/*"]
     }
   },
   "include": [
