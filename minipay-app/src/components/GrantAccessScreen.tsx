@@ -68,7 +68,8 @@ export function GrantAccessScreen({ address, username, onGranted }: Props) {
 
       <h1 className="text-2xl font-black mb-1 text-center">Authorize Cowry AI</h1>
       <p className="text-cowry-muted text-sm text-center mb-7 max-w-xs leading-relaxed">
-        Hi <span className="text-white font-semibold">@{username}</span>! Grant Cowry AI permission to
+        {username && <>Hi <span className="text-white font-semibold">@{username}</span>! </>}
+        Grant Cowry AI permission to
         execute payments on your behalf — you'll never need to sign a payment transaction again.
       </p>
 
