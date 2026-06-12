@@ -1,8 +1,12 @@
-# Cowry — Conversational Crypto Payments 
+# Cowry — Conversational Crypto Payments
 
 > **Send money as easily as sending a message.**
 
-Cowry is an AI-powered payment application built on the blockchain. It eliminates the complexity of traditional crypto payments by letting users send funds, manage groups, and automate financial actions through simple, natural language commands — no wallet addresses, no confusing interfaces, just conversation.
+Cowry is an AI-powered crypto payment app built on **Celo**. Type what you want —
+*"send $50 to a bank account in Nigeria"*, *"bridge 20 USDC to Base"*, *"what's my
+balance?"* — and an onchain AI agent parses the intent, shows you a preview, and
+executes the transaction on confirmation. No forms, no wallet addresses, no
+multi-app hopping.
 
 ---
 
@@ -10,427 +14,253 @@ Cowry is an AI-powered payment application built on the blockchain. It eliminate
 
 - [The Problem](#the-problem)
 - [The Solution](#the-solution)
+- [Live Deployment](#live-deployment)
 - [Key Features](#key-features)
 - [How It Works](#how-it-works)
-- [User Flow](#user-flow)
 - [Architecture Overview](#architecture-overview)
 - [Smart Contracts](#smart-contracts)
 - [AI Layer](#ai-layer)
+- [Integrations](#integrations)
 - [Tech Stack](#tech-stack)
-- [Why Monad](#why-monad)
-- [Roadmap](#roadmap)
-- [Use Cases](#use-cases)
+- [Why Celo](#why-celo)
 - [Security & Safety](#security--safety)
-- [Team](#team)
+- [Roadmap](#roadmap)
+- [License](#license)
 
 ---
 
-
-## Celo mainnet deployment (chainId 42220) — v2 operator/agent
-UsernameRegistry: `0x1d8050eda109364c15db4c2c5a172128eaeabd25`  
-GroupRegistry: `0x3d8ea5b32dda2b3bfb71c9a07de25ecf28b73fd4`  
-CowryPay (v2 + operators): `0xf253dde47ca717737be3aefb76326180c2239e04`  
-USDC: `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` · USDm: `0x765DE816845861e75A25fCA122bb6898B8B1282a`  
-[CeloScan](https://celoscan.io/address/0xf253dde47ca717737be3aefb76326180c2239e04)
-
-
 ## The Problem
 
-Crypto payments today are broken for everyday users.
+Crypto payments are powerful, but three everyday jobs remain painfully hard:
 
-Despite billions of dollars flowing through blockchain networks daily, the experience of actually sending money to another person remains deeply unfriendly:
+- **Sending money home.** Traditional remittance to Africa is slow and expensive —
+  bank wires take days, fees eat 5–10%, and the recipient often needs an account
+  the sender doesn't have details for.
+- **Moving between chains.** Stablecoins are fragmented across a dozen networks.
+  Getting USDC from Celo to Base or Arbitrum means juggling bridges, gas tokens,
+  and unfamiliar UIs.
+- **The interface itself.** Wallet addresses, gas, slippage, network switching —
+  none of this maps to how people actually think ("send mom $50").
 
-- **Wallet addresses are unreadable.** A string like `0x4e83...c2a1` is not how humans identify each other. One wrong character and funds are gone forever.
-- **The UX is intimidating.** Gas fees, transaction confirmations, network selection, slippage settings — these concepts create a steep barrier for non-technical users who simply want to split a bill or pay back a friend.
-- **No conversational interface exists.** Every other financial tool in people's daily lives — from WhatsApp to Venmo — uses simple, human-readable interactions. Crypto wallets do not.
-- **Group payments are painful.** Splitting costs among multiple people requires manually repeating the same transaction multiple times, tracking each address, and hoping nothing goes wrong.
-
-The result is that crypto payments remain a tool for the technically sophisticated, locked away from the billions of people who could genuinely benefit from fast, borderless, low-cost transactions.
+Cowry collapses all of this into one chat box.
 
 ---
 
 ## The Solution
 
-Cowry bridges the gap between the power of blockchain payments and the simplicity of everyday messaging apps.
-
-Instead of interacting with raw wallet infrastructure, users simply type what they want to do — just like sending a WhatsApp message. The AI understands the intent, resolves usernames to wallet addresses, presents a clear confirmation, and executes the transaction on Monad.
+Cowry wraps a few real, working integrations behind a single AI chat interface:
 
 ```
-"Send $2,000 to @tolu"         → Single payment, executed instantly
-"Split $10k among Friends"     → Batch payment to a named group
-"Send $5k to @ada every Friday" → Recurring automated payment
+"Send $50 to a bank account in Nigeria"   → Cross-border payout via Paycrest
+"Bridge 20 USDC to Base"                  → Cross-chain send via LI.FI
+"What's my balance?"                      → Onchain USDC / USDm balance
 ```
 
-Cowry makes crypto payments as simple as texting.
+Every action is parsed by an LLM, turned into a clear preview, and only executed
+after the user explicitly confirms.
+
+---
+
+## Live Deployment
+
+**Celo Mainnet (chainId `42220`)**
+
+| Contract | Address |
+|---|---|
+| UsernameRegistry | `0x1d8050eda109364c15db4c2c5a172128eaeabd25` |
+| GroupRegistry | `0x3d8ea5b32dda2b3bfb71c9a07de25ecf28b73fd4` |
+| CowryPay (v2 + operators) | `0xf253dde47ca717737be3aefb76326180c2239e04` |
+| USDC | `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` |
+| USDm (Mento Dollar) | `0x765DE816845861e75A25fCA122bb6898B8B1282a` |
+
+[View CowryPay on CeloScan →](https://celoscan.io/address/0xf253dde47ca717737be3aefb76326180c2239e04)
 
 ---
 
 ## Key Features
 
-### 1. Wallet Connection & Identity
+### 1. AI Chat Interface
+Users talk to Cowry in plain language. A Groq-hosted Llama 3.3 model classifies
+the message into a structured intent (remittance, cross-chain send, balance check,
+general chat, etc.), and the pipeline fills in any missing details with targeted
+follow-up questions before building a preview.
 
-Users create their crypto wallet on their first visit. The wallet acts as the cryptographic backbone of their identity on Cowry — it is the source of truth for who they are and what they own. No new seed phrases, no new accounts to manage.
+### 2. Cross-Border Remittance (Paycrest)
+Send USDC from your Celo wallet straight to a **bank account or mobile money
+wallet** abroad — the recipient doesn't need a wallet, an app, or a Cowry account.
 
-### 2. Username System
+Supported countries: 🇳🇬 Nigeria (NGN), 🇰🇪 Kenya (KES), 🇬🇭 Ghana (GHS),
+🇺🇬 Uganda (UGX), 🇹🇿 Tanzania (TZS), 🇲🇼 Malawi (MWK).
 
-Every user claims a unique, human-readable username (e.g., `@tolu`, `@ada`, `@john`) that is permanently mapped to their wallet address on-chain.
+Flow: resolve the bank/provider → verify the account holder's name → quote the
+live exchange rate → on confirm, lock the rate with Paycrest and send USDC to the
+settlement address. Frequent recipients can be saved under a nickname (e.g.
+"mom"), with the account number encrypted at rest.
 
-- Usernames are **globally unique** — no two users can hold the same username
-- Claims are **one-time and permanent** — once a username is registered, it belongs to that wallet
-- Usernames are **human-readable** — they replace wallet addresses entirely in the Cowry experience
-- The mapping is stored on-chain, making it **trustless and verifiable** by anyone
+### 3. Cross-Chain Bridge (LI.FI)
+Send USDC or USDm from Celo straight to a USDC address on another chain:
+Ethereum, Optimism, BNB Chain, Polygon, Base, Arbitrum, Avalanche, Linea, and
+Scroll — with more available via LI.FI's routing.
 
-This system solves one of the most fundamental UX problems in crypto: you no longer need to know someone's wallet address. You just need their username.
+### 4. Onchain Identity & Payments
+Three Celo smart contracts power Cowry's payment rail:
+- **UsernameRegistry** — maps a human-readable `@username` to a wallet address
+- **GroupRegistry** — named groups of recipients for batch payments
+- **CowryPay** — single, group-equal, and group-split transfers, including
+  agent-executed (`...OnBehalf`) variants used by the AI for remittance and
+  cross-chain sends
 
-### 3. AI Chat Interface
+### 5. Always-Confirm Safety Layer
+No transaction — onchain or off-chain — ever executes without the user explicitly
+typing **confirm**. Every quote shows the exact amounts, recipient, and rate
+up front.
 
-The core of Cowry is a chat interface powered by an AI agent. Users interact with the AI entirely in natural language — no menus, no forms, no complicated flows.
-
-The AI is capable of:
-- Understanding the **intent** behind a message ("send", "split", "create group", "automate")
-- **Extracting parameters** such as amounts, usernames, and group names from casual phrasing
-- **Handling ambiguity** gracefully by asking clarifying questions when a command is unclear
-- **Confirming actions** before executing any transaction, giving users full control
-
-The interface is intentionally familiar. If you have ever used WhatsApp, Telegram, or iMessage, you already know how to use Cowry.
-
-### 4. Individual Payments
-
-Users can send funds to any other Cowry user by simply typing a command. The AI parses the request, resolves the recipient's username to their wallet address, displays a clear confirmation card, and executes the transaction upon approval.
-
-**Example commands:**
-- `"Send $2,000 to @tolu"`
-- `"Pay @ada $5k"`
-- `"Transfer 10 USDC to @john"`
-
-### 5. Group Creation & Management
-
-Users can create named groups of friends, family, teammates, or any collection of people. Groups are created conversationally and stored so they can be reused across multiple transactions.
-
-**Example commands:**
-- `"Create group 'Friends' with @tolu, @ada, @john"`
-- `"Add @chidi to the Friends group"`
-- `"Remove @john from Family"`
-
-Groups can be:
-- Named and renamed
-- Expanded with new members
-- Reduced by removing members
-- Queried (`"Who is in the Friends group?"`)
-
-### 6. Group Payments
-
-Once groups exist, sending money to all members is as simple as naming the group. The AI resolves all members, calculates the total cost, presents a preview, and executes batch transactions in a single interaction.
-
-**Example commands:**
-- `"Send $2,000 to everyone in Friends"`
-- `"Split $10k among the Family group"`
-- `"Pay each person in Work $500"`
-
-For split payments, Cowry automatically calculates each person's share and handles the math — users never need to divide manually.
-
-### 7. AI Automation (Advanced)
-
-Cowry supports recurring and conditional payment automation. Users define rules in natural language, and the AI agent executes them automatically according to the defined schedule or condition.
-
-**Example commands:**
-- `"Send ₦5,000 to @tolu every Friday"`
-- `"Pay rent to @landlord on the 1st of every month"`
-- `"If I receive $20k, save half to my savings wallet"`
-
-Automations are transparent and fully user-controlled. Users can list, pause, or cancel any active automation at any time through a simple chat command.
-
-### 8. Safety & Confirmation Layer
-
-No transaction in Cowry is ever executed without explicit user confirmation. Before every payment — individual, group, or automated — the system presents a structured preview that includes:
-
-- Recipient name(s) and username(s)
-- Exact amount per recipient
-- Total amount being sent
-- Network and estimated gas fee
-- A clear confirm / cancel prompt
-
-Additionally, Cowry includes behavioral checks that flag potentially suspicious activity, such as unusually large amounts, new recipients, or duplicate transactions within a short timeframe.
-
-### 9. Social Layer
-
-Payments in Cowry are social by nature. Users can attach notes and emoji to any payment, making the experience feel personal rather than transactional.
-
-- **Payment notes:** `"Send $1k to @tolu for shawarma 🌯"`
-- **Emoji reactions:** Recipients can react to incoming payments
-- **Activity feed:** A running history of sent and received payments with notes and context
+### 6. Built on Celo, for MiniPay
+Sub-cent fees, fast finality, and native MiniPay support make Cowry practical for
+everyday, low-value payments — not just whales moving six figures.
 
 ---
 
 ## How It Works
 
-### Step 1 — User Types a Command
-The user types a natural language message in the chat interface. This could be as simple as `"Send ₦2k to @ada"` or as nuanced as `"Split last night's dinner bill of ₦15k among the Friends group"`.
-
-### Step 2 — AI Parses the Intent
-The AI agent processes the message to extract:
-- **Action:** Send, split, create group, automate, query
-- **Amount:** Numeric value and currency
-- **Recipients:** Usernames or group names
-- **Conditions:** Timing, frequency, or triggers (for automations)
-
-### Step 3 — Username Resolution
-The AI queries the on-chain username registry smart contract to resolve each username to its corresponding wallet address. If a username does not exist, the user is notified before proceeding.
-
-### Step 4 — Confirmation Prompt
-A structured confirmation card is displayed in the chat. The user reviews all transaction details and either confirms or cancels.
-
-### Step 5 — Transaction Execution
-Upon confirmation, the smart contract executes the payment(s). For individual payments, this is a single transaction. For group payments, this is a batch transaction that distributes funds to all recipients in one on-chain call.
-
-### Step 6 — Confirmation in Chat
-The chat interface updates with a success message and a summary of the transaction, including a link to the on-chain receipt.
-
----
-
-## User Flow
-
-### Onboarding
-
-```
-1. User opens Cowry
-2. Create their crypto wallet 
-3. Claims a unique username (e.g., @tolu)
-4. Username is registered on-chain, mapped to their wallet address
-5. User lands on the AI chat interface — ready to send
-```
-
-### Sending to an Individual
-
-```
-User:  "Send $2k to @ada"
-
-Cowry: Here's your payment summary:
-       ┌────────────────────────────┐
-       │ To:      @ada              │
-       │ Amount:  $2,000            │
-       │ Network:              │
-       │ Fee:     ~$0.002           │
-       └────────────────────────────┘
-       Confirm or Cancel?
-
-User:  Confirm
-
-Cowry: ✅ Done! $2,000 sent to @ada.
-       View on explorer →
-```
-
-### Creating a Group
-
-```
-User:  "Create a group called Friends with @tolu, @ada, and @chidi"
-
-Cowry: Got it! Creating group "Friends" with 3 members:
-       • @tolu
-       • @ada
-       • @chidi
-       Confirm?
-
-User:  Yes
-
-Cowry: ✅ Group "Friends" created with 3 members.
-```
-
-### Sending to a Group
-
-```
-User:  "Send $2k to everyone in Friends"
-
-Cowry: Here's your payment summary:
-       ┌────────────────────────────┐
-       │ Group:   Friends (3 people)│
-       │ Each:    $2,000            │
-       │ Total:   $6,000            │
-       │ Network:              │
-       │ Fee:     ~$0.003           │
-       └────────────────────────────┘
-       Confirm or Cancel?
-
-User:  Confirm
-
-Cowry: ✅ ₦2,000 sent to @tolu, @ada, and @chidi.
-```
+1. **User types a message** — e.g. *"send $50 to a bank account in Nigeria"*.
+2. **The AI parses intent** using Groq's Llama 3.3, extracting amount, country,
+   institution, account details, or chain/token info.
+3. **The pipeline fills gaps** by asking clarifying questions (e.g. "Which bank?",
+   "What's the account number?") and resolves them against live data (Paycrest
+   institution lists, LI.FI routes).
+4. **A preview is shown** — exact send amount, recipient, estimated receive amount
+   and rate (for remittance), or destination chain and route (for bridging).
+5. **User confirms.** The AI agent — an EOA registered onchain as a verified agent
+   (Self Protocol / ERC-8004, Agent ID `112`) — signs and submits the transaction(s)
+   via `CowryPay.payOnBehalf`, a Paycrest sender order, or a LI.FI route.
+6. **Result is shown in chat**, with a CeloScan link and (for remittance) a
+   Paycrest order reference.
 
 ---
 
 ## Architecture Overview
 
-Cowry is composed of three integrated layers:
-
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                     FRONTEND LAYER                      │
-│          WhatsApp-style React chat interface            │
-│         Wallet connection (wagmi / WalletConnect)       │
+│                     FRONTEND LAYER                       │
+│   Next.js chat UI (minipay-app) · wagmi/viem wallet       │
+│   Cross-chain send panel · Remittance quote cards         │
 └─────────────────────────────┬───────────────────────────┘
-                              │
+                               │
 ┌─────────────────────────────▼───────────────────────────┐
-│                      AI LAYER                           │
-│       Natural language parsing & intent recognition     │
-│       Command classification & parameter extraction     │
-│       Confirmation generation & response formatting     │
+│                       AI LAYER                            │
+│   packages/agent-core — intent parsing (Groq/Llama 3.3)   │
+│   Pipeline orchestration, clarifications, quotes          │
+│   Session state, saved recipients (Upstash, AES-256-GCM)  │
 └─────────────────────────────┬───────────────────────────┘
-                              │
+                               │
 ┌─────────────────────────────▼───────────────────────────┐
-│                  SMART CONTRACT LAYER                   │
-│         Username Registry (on-chain name → address)    │
-│         Payment Executor (single & batch transfers)     │
-│         Group Registry (named group management)         │
-│         Automation Engine (recurring/conditional txns)  │
+│              SMART CONTRACTS + INTEGRATIONS               │
+│   Celo: UsernameRegistry · GroupRegistry · CowryPay        │
+│   Paycrest (remittance) · LI.FI (cross-chain bridging)     │
+│   Self Protocol (ERC-8004 agent identity)                  │
 └─────────────────────────────────────────────────────────┘
-                              │
-                       BLOCKCHAIN
 ```
 
 ---
 
 ## Smart Contracts
 
-Cowry is powered by three core smart contracts deployed on Monad.
+### UsernameRegistry
+Maps a unique, lowercase `@username` to a wallet address on Celo. Registration is
+one-time and permanent (no transfers, no re-registration), preventing squatting
+and impersonation.
 
-### Username Registry Contract
+### GroupRegistry
+Stores named groups and their member lists — the onchain primitive for "pay
+everyone in Friends" style batch payments.
 
-The Username Registry is responsible for maintaining the mapping between human-readable usernames and wallet addresses. It is the foundational identity layer of the entire Cowry system.
-
-**Key responsibilities:**
-- Accepting new username registration requests
-- Enforcing global uniqueness — rejecting duplicate claims
-- Storing the permanent `username → wallet address` mapping on-chain
-- Providing a public lookup function for the AI layer to resolve usernames at payment time
-- Emitting events on registration for indexing and analytics
-
-**Design considerations:**
-- Usernames are stored as lowercase hashed strings to prevent case-based duplicates (`@Tolu` and `@tolu` are treated as the same)
-- Once claimed, a username cannot be transferred or re-registered to prevent squatting abuse
-- The contract exposes a simple `resolve(username)` function that returns the wallet address
-
-### Payment Executor Contract
-
-The Payment Executor handles the actual movement of funds. It supports both single-recipient and multi-recipient (batch) transactions, enabling group payments to be completed in a single on-chain call.
-
-**Key responsibilities:**
-- Validating that the sender has sufficient balance before execution
-- Executing single payments from sender to recipient
-- Executing batch payments to multiple recipients in one transaction
-- Emitting payment events with metadata (sender, recipients, amounts, notes)
-
-**Design considerations:**
-- Batch payments are processed atomically — either all transfers succeed or the entire batch reverts, preventing partial payments
-- Payment notes are stored as event data (not on-chain storage) to minimize gas costs
-- Gas optimization is a priority given the potential for high-frequency micropayments
-
-### Group Registry Contract (or Off-Chain Index)
-
-Groups can be stored either on-chain or in a performant off-chain index (such as a decentralized graph or a trusted server-side database) depending on the trade-off between decentralization and cost.
-
-**Key responsibilities:**
-- Storing named groups and their member lists
-- Handling group creation, member addition, and member removal
-- Providing group resolution for the AI layer during payment processing
+### CowryPay (v2)
+The payment engine. Supports:
+- `pay` — single transfer
+- `payGroupEqual` / `payGroupSplit` — batch transfers to a group, split evenly or
+  by custom amounts
+- `payOnBehalf`, `payGroupEqualOnBehalf`, `payGroupSplitOnBehalf` — operator
+  (agent) variants used by the AI to execute remittance and cross-chain sends on
+  a user's behalf after confirmation
 
 ---
 
 ## AI Layer
 
-The AI layer is the brain of Cowry. It transforms unstructured human language into structured, executable payment instructions.
+`packages/agent-core` is the shared TypeScript package powering intent parsing and
+orchestration:
 
-### Intent Classification
-
-Every message is first classified into one of the following intent categories:
-
-| Intent | Example |
-|--------|---------|
-| `SEND_INDIVIDUAL` | "Send ₦2k to @tolu" |
-| `SEND_GROUP` | "Pay everyone in Friends ₦1k" |
-| `SPLIT_PAYMENT` | "Split ₦9k among @tolu, @ada, @john" |
-| `CREATE_GROUP` | "Create group Family with @mama, @papa" |
-| `EDIT_GROUP` | "Add @chidi to Friends" |
-| `AUTOMATE_PAYMENT` | "Send ₦5k to @tolu every Friday" |
-| `QUERY` | "Who is in my Friends group?" |
-| `CANCEL` | "Cancel that" |
-
-### Parameter Extraction
-
-Once intent is classified, the AI extracts all relevant parameters from the message:
-
-- **Amount** — numeric value with currency parsing (`$2k` → `2000 USDC`, `0.1 USDC` → `0.1 USDC`)
-- **Recipient(s)** — username handles extracted from the message
-- **Group name** — named groups referenced in the command
-- **Schedule** — timing and frequency for automated payments
-- **Note** — optional payment description or emoji
-
-### Ambiguity Handling
-
-When a command is missing required information or is ambiguous, the AI asks a targeted clarifying question rather than guessing. This prevents accidental transactions.
-
-```
-User:  "Send money to @tolu"
-Cowry: How much would you like to send to @tolu?
-```
-
-### Safety Checks
-
-Before generating a confirmation prompt, the AI applies a set of safety heuristics:
-- **Large amount warning:** Flags transactions above a configurable threshold for extra confirmation
-- **New recipient notice:** Highlights when paying someone for the first time
-- **Duplicate detection:** Warns if an identical transaction was executed recently
-- **Unresolved username:** Notifies the user if a mentioned username does not exist on-chain
+- **`llm.ts`** — Groq (Llama 3.3 70B) prompts for intent classification and
+  general conversational replies (plain text, no markdown)
+- **`pipeline.ts`** — routes parsed intents to handlers, manages clarification
+  loops, builds previews, and confirms/executes transactions
+- **`remittance/`** — Paycrest client, country/currency tables, institution
+  matching, encrypted saved-recipient storage
+- **`lifi/`** — LI.FI bridge quotes for cross-chain sends
+- **`agent/`** — the agent's Celo wallet and its onchain identity (Self Protocol
+  / ERC-8004 verification)
 
 ---
 
-## Use Cases
+## Integrations
 
-**Friends & Social Circles**
-A group of friends goes out for dinner. One person pays. Later, someone types: `"Split ₦24,000 among Friends group"` and everyone's share is automatically sent in seconds.
+| Service | Used for |
+|---|---|
+| [Groq](https://console.groq.com) (Llama 3.3 70B) | Intent parsing & conversational replies |
+| [Paycrest](https://paycrest.io) | Cross-border USDC → bank/mobile-money payouts |
+| [LI.FI](https://li.fi) | Cross-chain USDC/USDm routing |
+| [Upstash Redis](https://upstash.com) | Encrypted saved-recipient address book |
+| [Self Protocol](https://self.xyz) | ERC-8004 onchain agent identity verification |
 
-**Roommates & Household Bills**
-Housemates set up a recurring group automation: `"Split $80k rent among Apartment group on the 1st of every month"`. No more chasing people for payments.
+---
 
-**Small Businesses & Freelancers**
-A freelancer gets paid for a project: `"Send $150k to @designer for logo work"`. The note is on-chain. The payment is instant. No bank transfers, no delays.
+## Tech Stack
 
-**Communities & DAOs**
-A community manager distributes monthly stipends: `"Send $5k to everyone in Contributors group"`. One command, one confirmation, hundreds of payments.
+- **Frontend:** Next.js 14 (App Router), React, TypeScript, Tailwind CSS
+- **Wallet / chain:** viem, wagmi, Celo mainnet
+- **AI:** Groq-hosted Llama 3.3 70B via the OpenAI-compatible API
+- **Monorepo:** `minipay-app` (Next.js app), `packages/agent-core` (shared AI +
+  chain logic), `smartcontract` (Foundry contracts), `ai-agent-service`
+- **Storage:** Upstash Redis (serverless), AES-256-GCM for encrypted PII
 
-**Savings Automation**
-A user sets up a personal rule: `"Every time I receive money, save 20% to @my-savings"`. Financial discipline on autopilot.
+---
+
+## Why Celo
+
+- **Sub-cent fees** make per-message, low-value payments and remittance viable
+- **Fast finality** keeps the chat experience responsive
+- **Mento stablecoins** (USDm) and native USDC support
+- **MiniPay** — Celo's mobile wallet — gives Cowry a built-in distribution channel
+  across emerging markets, the exact audience remittance serves
 
 ---
 
 ## Security & Safety
 
-Security is a first-class concern in Cowry, given that the application handles real financial transactions.
-
-**Smart Contract Security**
-- Contracts are designed to be minimal and auditable — no unnecessary complexity
-- Batch payments are atomic — partial failures cause full reversals
-- Re-entrancy guards on all payment functions
-- Formal audit planned before mainnet launch
-
-**AI Safety**
-- No transaction is ever executed without explicit user confirmation
-- The AI is instruction-following, not autonomous — it never initiates transactions on its own
-- Large or unusual transactions trigger additional confirmation steps
-- All AI decisions are logged for review and improvement
-
-**User Safety**
-- Usernames cannot be changed after registration, reducing impersonation risk
-- Unresolved usernames are surfaced before any funds are prepared
-- Users can review their full transaction history at any time
-- Emergency pause mechanism on smart contracts for critical incidents
+- **Explicit confirmation** — every onchain or off-chain action requires the user
+  to type `confirm`; nothing executes implicitly
+- **Encrypted PII** — saved recipient bank/mobile-money numbers are encrypted at
+  rest with AES-256-GCM before being stored in Redis
+- **Verifiable agent identity** — the AI's wallet is registered onchain via Self
+  Protocol (ERC-8004), so its actions are attributable and auditable
+- **Atomic batch payments** — CowryPay's group functions revert entirely on
+  partial failure, never leaving a split payment half-done
 
 ---
 
+## Roadmap
+
+- More remittance corridors and currencies
+- Chat-driven group payments and splits (the onchain primitives already exist in
+  GroupRegistry / CowryPay)
+- Recurring and conditional payment automations
+- Earn/yield (e.g. Morpho USDC vaults) directly from the chat
+- Additional bridge chains via LI.FI
+
+---
 
 ## License
 
 MIT License — see [LICENSE](./LICENSE) for details.
-
----
-
-*Built with ❤️ on Monad.*
