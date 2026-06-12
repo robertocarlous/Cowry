@@ -3,19 +3,19 @@ import Link from "next/link";
 
 const FEATURES = [
   {
-    icon: "💬",
-    title: "Talk to Pay",
-    desc: `Just type what you want — "Send 20 USDm to @ada". No forms, no addresses, no complexity.`,
+    icon: "🌍",
+    title: "Send Money Abroad",
+    desc: "Send USDC straight to a bank account or mobile money wallet in Nigeria, Kenya, Ghana, and more — the recipient doesn't need a wallet or a Cowry account.",
   },
   {
-    icon: "👥",
-    title: "Group Payments",
-    desc: "Create named groups, split bills, or pay every member at once in a single transaction.",
+    icon: "💬",
+    title: "Talk to Pay",
+    desc: `Just type what you want — "Send $50 to a bank account in Nigeria". No forms, no manual entry, no complexity.`,
   },
   {
     icon: "🌉",
     title: "Cross-Chain",
-    desc: "Send from Ethereum, Base, Arbitrum, or any major chain. Recipients get USDm or USDC on Celo.",
+    desc: "Send USDC or USDm from Celo straight to a wallet on Ethereum, Base, Arbitrum, and 6 more chains.",
   },
   {
     icon: "🤖",
@@ -30,18 +30,27 @@ const FEATURES = [
   {
     icon: "⚡",
     title: "Built on Celo",
-    desc: "Sub-cent fees, instant finality, and native MiniPay support — built for everyday payments.",
+    desc: "Sub-cent fees, instant finality, and native MiniPay support — built for everyday payments and remittances.",
   },
 ];
 
 const STEPS = [
   { step: "01", title: "Open Cowry", desc: "Works in any browser or inside MiniPay. Your wallet connects automatically — no signup needed." },
-  { step: "02", title: "Register your @username", desc: "Claim a unique name that maps to your wallet on-chain — forever." },
-  { step: "03", title: "Type what you want", desc: `"Send $5 USDm to @tolu" or "Split $30 among Friends group".` },
-  { step: "04", title: "Tap Confirm", desc: "Review the preview, tap Confirm. Cowry handles the rest." },
+  { step: "02", title: "Grant Cowry AI access", desc: "One-time approval lets the AI agent execute payments on your behalf — no @username or registration required." },
+  { step: "03", title: "Type what you want", desc: `"Send $50 to a bank account in Nigeria" or "Bridge 20 USDC to Base".` },
+  { step: "04", title: "Tap Confirm", desc: "Review the preview, tap Confirm. Cowry handles the rest — on-chain and off-chain." },
 ];
 
-const CHAINS = ["Ethereum", "Base", "Arbitrum", "Optimism", "Polygon", "BNB Chain", "Avalanche", "Celo"];
+const CHAINS = ["Ethereum", "Base", "Arbitrum", "Optimism", "Polygon", "BNB Chain", "Avalanche", "Linea", "Scroll"];
+
+const REMIT_COUNTRIES = [
+  { name: "Nigeria",  currency: "NGN" },
+  { name: "Kenya",    currency: "KES" },
+  { name: "Ghana",    currency: "GHS" },
+  { name: "Uganda",   currency: "UGX" },
+  { name: "Tanzania", currency: "TZS" },
+  { name: "Malawi",   currency: "MWK" },
+];
 
 export default function LandingPage() {
   return (
@@ -105,8 +114,9 @@ export default function LandingPage() {
           </span>
         </h1>
         <p className="max-w-xl mx-auto text-cowry-muted text-base sm:text-lg leading-relaxed mb-10">
-          Cowry is an AI-powered crypto payment app built on Celo. Just type what
-          you want to do — the AI understands, confirms, and executes.
+          Cowry is an AI-powered crypto payment app built on Celo. Send money to a
+          bank account abroad, bridge USDC to another chain, or check your balance —
+          just type what you want.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -140,10 +150,10 @@ export default function LandingPage() {
         <div className="mt-14 max-w-sm mx-auto">
           <div className="bg-cowry-card border border-cowry-border rounded-2xl p-4 text-left space-y-3">
             {[
-              { user: true,  text: "Send 20 USDm to @ada" },
-              { user: false, text: "💳 Payment Preview\n• @ada: 20 USDm\nTotal: 20 USDm\n\nConfirm or Cancel?" },
+              { user: true,  text: "Send $50 to a bank account in Nigeria" },
+              { user: false, text: "🌍 Cross-Border Payment\nTo: Ngozi Eze (GTBank ••••6789)\nThey get: ₦69,000 NGN\nYou send: 50 USDC\nRate: 1 USD ≈ ₦1,380 (locked for ~1hr)\n\nConfirm or Cancel?" },
               { user: true,  text: "Confirm" },
-              { user: false, text: "✅ Done! 20 USDm sent to @ada." },
+              { user: false, text: "✅ Sent! Ngozi will receive ₦69,000 NGN in her GTBank account shortly." },
             ].map((msg, i) => (
               <div key={i} className={`flex ${msg.user ? "justify-end" : "justify-start"}`}>
                 <div
@@ -167,7 +177,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-cowry-blue text-xs font-semibold tracking-widest uppercase mb-3">Features</p>
-            <h2 className="text-3xl sm:text-4xl font-black">Everything you need to pay anyone</h2>
+            <h2 className="text-3xl sm:text-4xl font-black">Everything you need to pay anyone, anywhere</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map((f) => (
@@ -210,13 +220,37 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Cross-chain ─────────────────────────────────────────────────── */}
+      {/* ── Send Abroad ─────────────────────────────────────────────────── */}
       <section className="px-6 py-20">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-cowry-blue text-xs font-semibold tracking-widest uppercase mb-3">Cross-Chain</p>
-          <h2 className="text-3xl sm:text-4xl font-black mb-4">Send from anywhere, receive on Celo</h2>
+          <p className="text-cowry-blue text-xs font-semibold tracking-widest uppercase mb-3">Cross-Border</p>
+          <h2 className="text-3xl sm:text-4xl font-black mb-4">Cash out to a bank account or mobile money</h2>
           <p className="text-cowry-muted text-base max-w-xl mx-auto mb-10 leading-relaxed">
-            Powered by LI.FI. Your recipient gets USDm or USDC on Celo — no matter which chain you send from.
+            Powered by Paycrest. Send USDC from Celo and your recipient gets local
+            currency in their bank account or mobile money wallet — no crypto wallet needed.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {REMIT_COUNTRIES.map((c) => (
+              <span
+                key={c.name}
+                className="px-4 py-2 rounded-full border border-cowry-border bg-cowry-card text-sm text-cowry-muted hover:border-cowry-blue/40 hover:text-white transition-colors"
+              >
+                {c.name} · {c.currency}
+              </span>
+            ))}
+          </div>
+          <p className="mt-5 text-cowry-muted text-xs">+ more countries coming soon</p>
+        </div>
+      </section>
+
+      {/* ── Cross-chain ─────────────────────────────────────────────────── */}
+      <section className="px-6 py-20 bg-cowry-darker">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-cowry-blue text-xs font-semibold tracking-widest uppercase mb-3">Cross-Chain</p>
+          <h2 className="text-3xl sm:text-4xl font-black mb-4">Send from Celo to anywhere</h2>
+          <p className="text-cowry-muted text-base max-w-xl mx-auto mb-10 leading-relaxed">
+            Powered by LI.FI. Send USDC or USDm from your Celo wallet straight to a
+            USDC address on any of these chains.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             {CHAINS.map((c) => (
@@ -233,14 +267,14 @@ export default function LandingPage() {
       </section>
 
       {/* ── Tokens ──────────────────────────────────────────────────────── */}
-      <section className="px-6 py-16 bg-cowry-darker">
+      <section className="px-6 py-16">
         <div className="max-w-3xl mx-auto text-center">
           <p className="text-cowry-blue text-xs font-semibold tracking-widest uppercase mb-3">Supported Tokens</p>
           <h2 className="text-2xl sm:text-3xl font-black mb-8">Pay in USDm or USDC</h2>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             {[
               { symbol: "USDm", name: "Mento Dollar", desc: "Native Celo stablecoin — 18 decimals. Default in MiniPay.", color: "from-cowry-blue to-cowry-mint" },
-              { symbol: "USDC", name: "USD Coin",     desc: "Circle's native USDC on Celo — 6 decimals.",              color: "from-blue-500 to-blue-400" },
+              { symbol: "USDC", name: "USD Coin",     desc: "Circle's native USDC on Celo — 6 decimals. Used for cross-border remittance.", color: "from-blue-500 to-blue-400" },
             ].map((t) => (
               <div
                 key={t.symbol}
@@ -270,7 +304,8 @@ export default function LandingPage() {
           />
           <h2 className="text-3xl sm:text-5xl font-black mb-4 glow-text">Ready to try Cowry?</h2>
           <p className="text-cowry-muted mb-8 leading-relaxed">
-            Open Cowry in your browser or MiniPay, register your @username, and send your first payment in under a minute.
+            Open Cowry in your browser or MiniPay, grant Cowry AI access, and send
+            your first payment in under a minute.
           </p>
           <Link
             href="/app"
@@ -290,7 +325,7 @@ export default function LandingPage() {
             <span className="text-cowry-border">·</span>
             <span className="text-xs text-cowry-border">Talk. Send. Automate.</span>
           </div>
-          <p className="text-xs text-cowry-border">Built on Celo · Powered by LI.FI · ERC-8004 Agent Identity</p>
+          <p className="text-xs text-cowry-border">Built on Celo · Powered by LI.FI & Paycrest · ERC-8004 Agent Identity</p>
         </div>
       </footer>
 
