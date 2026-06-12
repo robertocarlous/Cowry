@@ -150,8 +150,15 @@ function buildAgentRegistrationFile(opts: {
     services,
     ...(registrations.length > 0 ? { registrations } : {}),
     supportedTrust: ["reputation", "tee"],
+    tags: ["celo", "payments", "remittance", "cross-chain", "minipay", "self-verified"],
+    categories: ["payments", "defi"],
   };
 }
+
+const forceUpdate =
+  process.argv.includes("--update") ||
+  process.env.AGENT_8004_UPDATE?.trim() === "1" ||
+  process.env.AGENT_8004_UPDATE?.trim()?.toLowerCase() === "true";
 
 function toDataUri(json: object): string {
   const b64 = Buffer.from(JSON.stringify(json), "utf8").toString("base64");
@@ -366,7 +373,7 @@ const walletClient = createWalletClient({
 });
 
 console.log("───────────────────────────────────────────");
-console.log("  CowryPay AI — 8004scan / ERC-8004 Registration");
+console.log("  Cowry AI — 8004scan / ERC-8004 Registration");
 console.log("───────────────────────────────────────────");
 console.log("  Agent wallet   :", account.address);
 console.log("  Identity reg.  :", ERC8004_IDENTITY_REGISTRY);
@@ -388,10 +395,10 @@ if (selfAgentId) {
   console.log("  Self Agent ID  : (none linked in metadata)");
 }
 
-const agentName = process.env.AGENT_8004_NAME?.trim() || "CowryPay AI Agent";
+const agentName = process.env.AGENT_8004_NAME?.trim() || "Cowry AI Agent";
 const agentDescription =
   process.env.AGENT_8004_DESCRIPTION?.trim() ||
-  "Conversational crypto payments on Celo. Human-verified agent via Self Agent ID.";
+  "Conversational crypto payments on Celo: send USDC to bank accounts abroad (Paycrest remittance), bridge to other chains (LI.FI), and onchain transfers via chat. Human-verified via Self Agent ID.";
 const apiUrl = process.env.AGENT_API_URL?.trim() || process.env.PUBLIC_AGENT_URL?.trim();
 
 const registrationJson = buildAgentRegistrationFile({
@@ -428,12 +435,42 @@ if (agentId !== undefined) {
     functionName: "tokenURI",
     args: [agentId],
   });
-  console.log(`⏳  NFT already minted (agentId ${agentId}); finishing metadata...`);
-  if (currentUri.length > 0) {
-    console.log(`✅  agentURI already set (${currentUri.length} chars).`);
-    console.log(`  Add to .env      : AGENT_8004_ID=${agentId}`);
-    console.log(`  8004scan URL     : https://8004scan.io/agents/celo/${agentId}`);
-    process.exit(0);
+  if (forceUpdate) {
+    console.log(`⏳  Updating metadata for agentId ${agentId} (--update)...`);
+    const balance = await publicClient.getBalance({ address: account.address });
+    let uriCost: bigint;
+    try {
+      uriCost = await estimateTxCostWei(publicClient, account, {
+        address: ERC8004_IDENTITY_REGISTRY,
+        abi: IDENTITY_REGISTRY_ABI,
+        functionName: "setAgentURI",
+        args: [agentId, agentURI],
+      });
+    } catch {
+      const uriBytes = BigInt(Buffer.byteLength(agentURI, "utf8"));
+      const fees = await publicClient.estimateFeesPerGas();
+      const maxFee = fees.maxFeePerGas ?? fees.gasPrice ?? 0n;
+      uriCost = ((100_000n + uriBytes * 200n) * 110n) / 100n * maxFee;
+    }
+    if (balance < uriCost + 10n ** 14n) {
+      console.error(
+        `❌  Insufficient CELO to update agentURI.\n` +
+          `    Wallet balance : ${formatCelo(balance)}\n` +
+          `    Estimated need : ${formatCelo(uriCost)}\n` +
+          `    Send ~0.1 CELO to : ${account.address}\n` +
+          `    Then re-run: npm run register:8004scan -- --update`,
+      );
+      process.exit(1);
+    }
+  } else {
+    console.log(`⏳  NFT already minted (agentId ${agentId}); finishing metadata...`);
+    if (currentUri.length > 0) {
+      console.log(`✅  agentURI already set (${currentUri.length} chars).`);
+      console.log(`  To refresh metadata: npm run register:8004scan -- --update`);
+      console.log(`  Add to .env         : AGENT_8004_ID=${agentId}`);
+      console.log(`  8004scan URL        : https://8004scan.io/agents/celo/${agentId}`);
+      process.exit(0);
+    }
   }
 
   const balance = await publicClient.getBalance({ address: account.address });

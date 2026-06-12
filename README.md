@@ -75,6 +75,17 @@ after the user explicitly confirms.
 
 [View CowryPay on CeloScan →](https://celoscan.io/address/0xf253dde47ca717737be3aefb76326180c2239e04)
 
+**Onchain agent identity**
+
+| Registry | ID | Link |
+|---|---|---|
+| ERC-8004 (8004scan) | `9214` | [8004scan.io/agents/celo/9214](https://8004scan.io/agents/celo/9214) |
+| Self Agent ID | `112` | Linked in ERC-8004 metadata |
+
+Agent wallet: `0x6143120053f8f84EDEAf2Ee9D4486166E55C99AA`
+
+To refresh 8004scan metadata after scope changes: `cd ai-agent-service && npm run register:8004scan:update`
+
 ---
 
 ## Key Features
