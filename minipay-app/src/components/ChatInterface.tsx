@@ -255,6 +255,7 @@ export function ChatInterface() {
             setInput(template);
             setTimeout(() => inputRef.current?.focus(), 50);
           }}
+          onOpenCrossChain={() => { setShowCommands(false); setShowCrossChainSend(true); }}
           onClose={() => setShowCommands(false)}
         />
       )}

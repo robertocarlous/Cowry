@@ -3,7 +3,8 @@ import { useEffect } from "react";
 
 interface Command {
   label:    string;
-  template: string;
+  template?: string;
+  action?:  "cross-chain";
   desc:     string;
 }
 
@@ -22,10 +23,10 @@ const CATEGORIES: Category[] = [
     ],
   },
   {
-    icon: "↗️",
-    title: "Send from another chain",
+    icon: "🌉",
+    title: "Cross-Chain Bridge",
     commands: [
-      { label: "Bridge to Celo",    template: "",                             desc: "Send USDC from Ethereum, Base, Arbitrum and more" },
+      { label: "Send to another chain", action: "cross-chain", desc: "Send USDC or USDm from Celo to Ethereum, Base, Arbitrum, and more" },
     ],
   },
   {
@@ -46,11 +47,12 @@ const CATEGORIES: Category[] = [
 ];
 
 interface Props {
-  onSelect: (template: string) => void;
-  onClose:  () => void;
+  onSelect:        (template: string) => void;
+  onOpenCrossChain: () => void;
+  onClose:         () => void;
 }
 
-export function CommandMenu({ onSelect, onClose }: Props) {
+export function CommandMenu({ onSelect, onOpenCrossChain, onClose }: Props) {
   // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -100,8 +102,12 @@ export function CommandMenu({ onSelect, onClose }: Props) {
                 {cat.commands.map((cmd) => (
                   <button
                     key={cmd.label}
-                    onClick={() => { onSelect(cmd.template); onClose(); }}
-                    disabled={!cmd.template}
+                    onClick={() => {
+                      if (cmd.action === "cross-chain") onOpenCrossChain();
+                      else if (cmd.template) onSelect(cmd.template);
+                      onClose();
+                    }}
+                    disabled={!cmd.template && !cmd.action}
                     className="w-full flex items-center justify-between gap-3 bg-cowry-card hover:bg-cowry-card/70 border border-cowry-border hover:border-cowry-blue/30 rounded-xl px-4 py-3 text-left transition-all group disabled:opacity-40 disabled:cursor-default"
                   >
                     <div className="min-w-0">
@@ -110,7 +116,7 @@ export function CommandMenu({ onSelect, onClose }: Props) {
                       </p>
                       <p className="text-xs text-cowry-muted mt-0.5 truncate">{cmd.desc}</p>
                     </div>
-                    {cmd.template && (
+                    {(cmd.template || cmd.action) && (
                       <span className="text-cowry-border group-hover:text-cowry-blue transition-colors flex-shrink-0 text-xs">
                         →
                       </span>

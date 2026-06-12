@@ -54,7 +54,7 @@ const REMIT_COUNTRIES = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-full bg-cowry-dark text-white overflow-x-hidden">
+    <div className="h-full overflow-y-auto overflow-x-hidden bg-cowry-dark text-white">
 
       {/* ── Navbar ──────────────────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-cowry-dark/80 backdrop-blur-md border-b border-cowry-border">
