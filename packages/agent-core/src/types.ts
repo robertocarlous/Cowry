@@ -213,7 +213,7 @@ export type ChatResponse =
       preview: string;
       recipientLabel: string;
       sendAmount: string;
-      sendToken: "USDC";
+      sendToken: "USDC" | "USDT";
       receiveAmount: string;
       receiveCurrency: string;
       rateLabel: string;

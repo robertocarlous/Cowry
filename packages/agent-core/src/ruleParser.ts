@@ -1,10 +1,11 @@
 import type { ParsedIntent } from "./schemas.js";
 
-function paymentToken(raw: string | undefined): "USDC" | "USDm" | undefined {
+function paymentToken(raw: string | undefined): "USDC" | "USDm" | "USDT" | undefined {
   if (!raw) return undefined;
   const t = raw.toLowerCase();
   if (t === "usdc") return "USDC";
   if (t === "usdm") return "USDm";
+  if (t === "usdt" || t === "tether") return "USDT";
   if (t === "usd" || t.startsWith("dollar")) return "USDC";
   return undefined;
 }
@@ -15,7 +16,7 @@ function withPaymentToken<T extends ParsedIntent>(intent: T, tokenRaw: string | 
 }
 
 /** Captures optional token after amount: "1 USDC", "20 usdm", "$5", etc. */
-const AMT_TOKEN = String.raw`([\d,]+(?:\.\d+)?)\s*\$?\s*(usdc|usdm|usd|dollars?)?`;
+const AMT_TOKEN = String.raw`([\d,]+(?:\.\d+)?)\s*\$?\s*(usdc|usdm|usdt|tether|usd|dollars?)?`;
 
 function parseMoneyAmount(raw: string): number | null {
   const n = Number(raw.replace(/,/g, ""));

@@ -3,7 +3,7 @@
 type Props = {
   recipientLabel:  string;
   sendAmount:      string;
-  sendToken:       "USDC";
+  sendToken:       "USDC" | "USDT";
   receiveAmount:   string;
   receiveCurrency: string;
   rateLabel:       string;
