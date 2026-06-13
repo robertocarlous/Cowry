@@ -89,6 +89,8 @@ export const parsedIntentSchema = z.discriminatedUnion("kind", [
     institutionHint: z.string().optional(),
     /** Bank account number or mobile money phone number */
     accountIdentifier: z.string().optional(),
+    /** Source token the user explicitly named, e.g. "USDT". Supports USDC or USDT — defaults to USDC. */
+    token: z.string().optional(),
   }),
   z.object({
     kind: z.literal("unknown"),

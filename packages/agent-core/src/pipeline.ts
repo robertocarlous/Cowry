@@ -1130,6 +1130,8 @@ export async function earnFromIntent(
 
 type RemittanceSlots = {
   amount: number;
+  /** Source token on Celo to send — "USDC" or "USDT". */
+  token: "USDC" | "USDT";
   countryCode: string;
   currencyCode: string;
   institutionCode: string;
@@ -1161,6 +1163,7 @@ async function buildRemittanceQuote(
     // Keep the rest of the slots but ask the user to re-check the account number.
     setPendingRemittance(sessionId, {
       amount: slots.amount,
+      token: slots.token,
       countryCode: slots.countryCode,
       currencyCode: slots.currencyCode,
       institutionCode: slots.institutionCode,
@@ -1181,7 +1184,7 @@ async function buildRemittanceQuote(
     order = await createOffRampOrder({
       amount: slots.amount,
       network: "celo",
-      fromCurrency: "USDC",
+      fromCurrency: slots.token,
       refundAddress: walletAddress,
       toCurrency: slots.currencyCode,
       institution: slots.institutionCode,
@@ -1208,6 +1211,7 @@ async function buildRemittanceQuote(
 
   const quote: PendingRemittanceQuote = {
     amount: slots.amount,
+    token: slots.token,
     countryCode: slots.countryCode,
     currencyCode: slots.currencyCode,
     institutionCode: slots.institutionCode,
@@ -1233,7 +1237,7 @@ async function buildRemittanceQuote(
     `🌍 Cross-Border Payment\n` +
     `To: ${recipientLabel}\n` +
     `They get: ${symbol}${estimatedReceive} ${slots.currencyCode}\n` +
-    `You send: ${slots.amount} USDC\n` +
+    `You send: ${slots.amount} ${slots.token}\n` +
     `Rate: ${rateLabel}\n\n` +
     `Reply confirm to send, or cancel to abort.`;
 
@@ -1242,7 +1246,7 @@ async function buildRemittanceQuote(
     preview,
     recipientLabel,
     sendAmount: String(slots.amount),
-    sendToken: "USDC",
+    sendToken: slots.token,
     receiveAmount: estimatedReceive,
     receiveCurrency: slots.currencyCode,
     rateLabel,
@@ -1378,6 +1382,7 @@ async function continueRemittanceSlotFilling(
     sessionId,
     {
       amount: pending.amount,
+      token: pending.token,
       countryCode: pending.countryCode!,
       currencyCode: pending.currencyCode!,
       institutionCode: pending.institutionCode!,
@@ -1411,8 +1416,21 @@ export async function remittanceFromIntent(
   if (amount == null || !(amount > 0)) {
     return {
       type: "clarify",
-      question: "How much USDC would you like to send abroad? e.g. send $50 to a bank account in Nigeria",
+      question: "How much would you like to send abroad (USDC or USDT)? e.g. send $50 to a bank account in Nigeria",
     };
+  }
+
+  let token: "USDC" | "USDT" = existing?.token ?? "USDC";
+  if (intent.token) {
+    const upper = intent.token.toUpperCase();
+    if (upper === "USDC" || upper === "USDT") {
+      token = upper;
+    } else {
+      return {
+        type: "clarify",
+        question: `Cross-border payments support USDC or USDT — ${intent.token} isn't supported. Want to send USDC or USDT instead?`,
+      };
+    }
   }
 
   // ── Saved recipient fast path ───────────────────────────────────────────
@@ -1423,6 +1441,7 @@ export async function remittanceFromIntent(
         sessionId,
         {
           amount,
+          token,
           countryCode: saved.countryCode,
           currencyCode: saved.currencyCode,
           institutionCode: saved.institutionCode,
@@ -1438,6 +1457,7 @@ export async function remittanceFromIntent(
 
   const pending: PendingRemittance = {
     amount,
+    token,
     countryCode: existing?.countryCode,
     currencyCode: existing?.currencyCode,
     institutionQuery: existing?.institutionQuery,
@@ -1465,7 +1485,7 @@ export async function remittanceFromIntent(
 
 /**
  * Lock the real exchange rate via Paycrest, then have the agent broadcast
- * USDC -> Paycrest's receiveAddress on the sender's behalf.
+ * the source token -> Paycrest's receiveAddress on the sender's behalf.
  */
 async function confirmRemittance(
   quote: PendingRemittanceQuote,
@@ -1473,13 +1493,13 @@ async function confirmRemittance(
   walletAddress: `0x${string}`,
   signal?: AbortSignal,
 ): Promise<ChatResponse> {
-  const usdc = getTokenBySymbol("USDC");
-  const amountBaseUnits = toBaseUnits(quote.amount, usdc.decimals);
+  const sourceToken = getTokenBySymbol(quote.token);
+  const amountBaseUnits = toBaseUnits(quote.amount, sourceToken.decimals);
 
   if (deps.mode === "chain" && deps.publicClient) {
     const plan: DraftTxPlan = {
       mode: "pay",
-      token: usdc.address,
+      token: sourceToken.address,
       to: walletAddress, // unused by checkUsdcReadiness; placeholder to satisfy the type
       amountHuman: quote.amount,
       amountBaseUnits: amountBaseUnits.toString(),
@@ -1507,7 +1527,7 @@ async function confirmRemittance(
       order = await createOffRampOrder({
         amount: quote.amount,
         network: "celo",
-        fromCurrency: "USDC",
+        fromCurrency: quote.token,
         refundAddress: walletAddress,
         toCurrency: quote.currencyCode,
         institution: quote.institutionCode,
@@ -1528,7 +1548,7 @@ async function confirmRemittance(
   try {
     const call = encodePayOnBehalf(
       walletAddress,
-      usdc.address,
+      sourceToken.address,
       order.receiveAddress as `0x${string}`,
       amountBaseUnits,
     );

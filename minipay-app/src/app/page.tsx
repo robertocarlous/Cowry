@@ -5,7 +5,7 @@ const FEATURES = [
   {
     icon: "🌍",
     title: "Send Money Abroad",
-    desc: "Send USDC straight to a bank account or mobile money wallet in Nigeria, Kenya, Ghana, and more — the recipient doesn't need a wallet or a Cowry account.",
+    desc: "Send USDC or USDT straight to a bank account or mobile money wallet in Nigeria, Kenya, Ghana, and more — the recipient doesn't need a wallet or a Cowry account.",
   },
   {
     icon: "💬",
@@ -226,8 +226,8 @@ export default function LandingPage() {
           <p className="text-cowry-blue text-xs font-semibold tracking-widest uppercase mb-3">Cross-Border</p>
           <h2 className="text-3xl sm:text-4xl font-black mb-4">Cash out to a bank account or mobile money</h2>
           <p className="text-cowry-muted text-base max-w-xl mx-auto mb-10 leading-relaxed">
-            Powered by Paycrest. Send USDC from Celo and your recipient gets local
-            currency in their bank account or mobile money wallet — no crypto wallet needed.
+            Powered by Paycrest. Send USDC or USDT from Celo and your recipient gets
+            local currency in their bank account or mobile money wallet — no crypto wallet needed.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             {REMIT_COUNTRIES.map((c) => (
@@ -270,11 +270,12 @@ export default function LandingPage() {
       <section className="px-6 py-16">
         <div className="max-w-3xl mx-auto text-center">
           <p className="text-cowry-blue text-xs font-semibold tracking-widest uppercase mb-3">Supported Tokens</p>
-          <h2 className="text-2xl sm:text-3xl font-black mb-8">Pay in USDm or USDC</h2>
+          <h2 className="text-2xl sm:text-3xl font-black mb-8">Pay in USDm, USDC, or USDT</h2>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             {[
               { symbol: "USDm", name: "Mento Dollar", desc: "Native Celo stablecoin. Default in MiniPay. Use it for cross-chain sends.", color: "from-cowry-blue to-cowry-mint" },
               { symbol: "USDC", name: "USD Coin",     desc: "Circle's native USDC on Celo. Use it for cross-chain sends and cross-border remittance.", color: "from-blue-500 to-blue-400" },
+              { symbol: "USDT", name: "Tether USD",   desc: "Tether's USDT on Celo. Use it for cross-border remittance.", color: "from-emerald-500 to-emerald-400" },
             ].map((t) => (
               <div
                 key={t.symbol}
