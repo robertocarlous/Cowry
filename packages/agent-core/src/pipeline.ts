@@ -1141,7 +1141,7 @@ type RemittanceSlots = {
 };
 
 /** Platform fee skimmed from every remittance, in basis points (100 = 1%). */
-const REMITTANCE_FEE_BPS = 200;
+const REMITTANCE_FEE_BPS = 100;
 
 /** Treasury wallet that receives the platform fee on each remittance. */
 const REMITTANCE_TREASURY_ADDRESS = process.env.REMITTANCE_TREASURY_ADDRESS as `0x${string}` | undefined;
