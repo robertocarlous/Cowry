@@ -7,6 +7,7 @@ type Props = {
   receiveAmount:   string;
   receiveCurrency: string;
   rateLabel:       string;
+  feeLabel:        string;
   onConfirm:       () => void;
   onCancel:        () => void;
 };
@@ -18,6 +19,7 @@ export function RemittanceQuoteCard({
   receiveAmount,
   receiveCurrency,
   rateLabel,
+  feeLabel,
   onConfirm,
   onCancel,
 }: Props) {
@@ -49,6 +51,10 @@ export function RemittanceQuoteCard({
           <span className="font-semibold text-white text-right">
             {sendAmount} {sendToken}
           </span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-cowry-muted">Fee</span>
+          <span className="text-cowry-muted text-right">{feeLabel}</span>
         </div>
       </div>
 

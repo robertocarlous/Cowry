@@ -31,6 +31,10 @@ export type PendingRemittance = {
 /** A fully-resolved remittance ready to show as a quote / confirm. */
 export type PendingRemittanceQuote = {
   amount: number;
+  /** Platform fee skimmed from `amount`, in the same `token` units. */
+  feeAmount: number;
+  /** `amount` minus `feeAmount` — the portion actually converted by Paycrest. */
+  netAmount: number;
   /** Source token on Celo being sent — "USDC" or "USDT". */
   token: "USDC" | "USDT";
   countryCode: string;

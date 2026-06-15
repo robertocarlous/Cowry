@@ -1140,6 +1140,24 @@ type RemittanceSlots = {
   recipientNickname?: string;
 };
 
+/** Platform fee skimmed from every remittance, in basis points (100 = 1%). */
+const REMITTANCE_FEE_BPS = 200;
+
+/** Treasury wallet that receives the platform fee on each remittance. */
+const REMITTANCE_TREASURY_ADDRESS = process.env.REMITTANCE_TREASURY_ADDRESS as `0x${string}` | undefined;
+
+/** Split a send amount into the platform fee and the net amount Paycrest converts. */
+function computeFeeSplit(amount: number): { feeAmount: number; netAmount: number } {
+  const feeAmount = Math.round(amount * REMITTANCE_FEE_BPS) / 10_000;
+  const netAmount = Math.round((amount - feeAmount) * 1_000_000) / 1_000_000;
+  return { feeAmount, netAmount };
+}
+
+function formatFeePercent(bps: number): string {
+  const pct = bps / 100;
+  return `${Number.isInteger(pct) ? pct : pct.toFixed(2)}%`;
+}
+
 /**
  * Verify the account, lock a real rate by creating a Paycrest order, store
  * the quote (including the order's receiveAddress) in session state, and
@@ -1178,11 +1196,12 @@ async function buildRemittanceQuote(
   }
 
   const resolvedAccountName = accountName.toUpperCase() === "OK" ? "Recipient" : accountName;
+  const { feeAmount, netAmount } = computeFeeSplit(slots.amount);
 
   let order;
   try {
     order = await createOffRampOrder({
-      amount: slots.amount,
+      amount: netAmount,
       network: "celo",
       fromCurrency: slots.token,
       refundAddress: walletAddress,
@@ -1203,7 +1222,7 @@ async function buildRemittanceQuote(
   }
 
   const rateNum = Number(order.rate);
-  const receiveAmount = slots.amount * rateNum;
+  const receiveAmount = netAmount * rateNum;
   const estimatedReceive = receiveAmount.toLocaleString(undefined, { maximumFractionDigits: 2 });
   const last4 = slots.accountIdentifier.slice(-4);
   const displayLabel = `${slots.institutionName} ••••${last4}`;
@@ -1211,6 +1230,8 @@ async function buildRemittanceQuote(
 
   const quote: PendingRemittanceQuote = {
     amount: slots.amount,
+    feeAmount,
+    netAmount,
     token: slots.token,
     countryCode: slots.countryCode,
     currencyCode: slots.currencyCode,
@@ -1232,12 +1253,14 @@ async function buildRemittanceQuote(
 
   const recipientLabel = `${resolvedAccountName} (${displayLabel})`;
   const rateLabel = `1 USD ≈ ${symbol}${rateNum.toLocaleString(undefined, { maximumFractionDigits: 2 })} (locked for ~1hr)`;
+  const feeLabel = `${feeAmount} ${slots.token} (${formatFeePercent(REMITTANCE_FEE_BPS)} fee)`;
 
   const preview =
     `🌍 Cross-Border Payment\n` +
     `To: ${recipientLabel}\n` +
     `They get: ${symbol}${estimatedReceive} ${slots.currencyCode}\n` +
     `You send: ${slots.amount} ${slots.token}\n` +
+    `Fee: ${feeLabel}\n` +
     `Rate: ${rateLabel}\n\n` +
     `Reply confirm to send, or cancel to abort.`;
 
@@ -1250,6 +1273,8 @@ async function buildRemittanceQuote(
     receiveAmount: estimatedReceive,
     receiveCurrency: slots.currencyCode,
     rateLabel,
+    feeAmount: String(feeAmount),
+    feeLabel,
   };
 }
 
@@ -1528,7 +1553,7 @@ async function confirmRemittance(
   } else {
     try {
       order = await createOffRampOrder({
-        amount: quote.amount,
+        amount: quote.netAmount,
         network: "celo",
         fromCurrency: quote.token,
         refundAddress: walletAddress,
@@ -1548,27 +1573,22 @@ async function confirmRemittance(
     }
   }
 
+  // Split the total into the net amount that funds the Paycrest order and the
+  // platform fee, deriving one from the other so they sum to exactly
+  // `amountBaseUnits` (avoids rounding drift between two independent
+  // toBaseUnits conversions).
+  const feeAmountBaseUnits = toBaseUnits(quote.feeAmount, sourceToken.decimals);
+  const netAmountBaseUnits = amountBaseUnits - feeAmountBaseUnits;
+
+  let txHash: `0x${string}`;
   try {
     const call = encodePayOnBehalf(
       walletAddress,
       sourceToken.address,
       order.receiveAddress as `0x${string}`,
-      amountBaseUnits,
+      netAmountBaseUnits,
     );
-    const txHash = await agentSendTx(call.to, call.data, 0n);
-    const explorerUrl = `https://celoscan.io/tx/${txHash}`;
-    const symbol = getCurrencySymbol(quote.currencyCode);
-    const preview =
-      `✅ Sent! ${quote.accountName} will receive ${symbol}${quote.estimatedReceive} ${quote.currencyCode} ` +
-      `in their ${quote.institutionName} account shortly.\n\n` +
-      `Paycrest order: ${order.id}`;
-    return {
-      type: "tx_sent",
-      preview,
-      txHash,
-      explorerUrl,
-      agentAddress: agentWallet.address,
-    };
+    txHash = await agentSendTx(call.to, call.data, 0n);
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     return {
@@ -1576,6 +1596,37 @@ async function confirmRemittance(
       question: `Order ${order.id} was created but the on-chain payment failed (${errMsg}). Please contact support with this order ID.`,
     };
   }
+
+  // Best-effort platform fee transfer. The recipient payout above already
+  // succeeded, so a failure here shouldn't surface as an error to the user —
+  // just log it for follow-up.
+  if (feeAmountBaseUnits > 0n && REMITTANCE_TREASURY_ADDRESS) {
+    try {
+      const feeCall = encodePayOnBehalf(
+        walletAddress,
+        sourceToken.address,
+        REMITTANCE_TREASURY_ADDRESS,
+        feeAmountBaseUnits,
+      );
+      await agentSendTx(feeCall.to, feeCall.data, 0n);
+    } catch (err) {
+      console.error("Remittance fee transfer failed:", err);
+    }
+  }
+
+  const explorerUrl = `https://celoscan.io/tx/${txHash}`;
+  const symbol = getCurrencySymbol(quote.currencyCode);
+  const preview =
+    `✅ Sent! ${quote.accountName} will receive ${symbol}${quote.estimatedReceive} ${quote.currencyCode} ` +
+    `in their ${quote.institutionName} account shortly.\n\n` +
+    `Paycrest order: ${order.id}`;
+  return {
+    type: "tx_sent",
+    preview,
+    txHash,
+    explorerUrl,
+    agentAddress: agentWallet.address,
+  };
 }
 
 const CONFIRM_RE = /^(yes|y|confirm|ok|proceed|sure)\b/i;
