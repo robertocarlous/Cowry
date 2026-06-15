@@ -217,6 +217,10 @@ export type ChatResponse =
       receiveAmount: string;
       receiveCurrency: string;
       rateLabel: string;
+      /** Platform fee included in `sendAmount`, e.g. "0.5". */
+      feeAmount: string;
+      /** Human-readable fee summary, e.g. "0.5 USDC (1% fee)". */
+      feeLabel: string;
     };
 
 export type TxHistoryItem = {
