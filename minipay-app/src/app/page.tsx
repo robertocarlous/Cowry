@@ -73,7 +73,10 @@ export default function LandingPage() {
 
       {/* ── Navbar ──────────────────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-cowry-dark/90 backdrop-blur-md border-b border-cowry-border">
-        <Image src="/CowryPay.png" alt="CowryPay" width={120} height={32} className="object-contain" />
+        <div className="flex items-center gap-2">
+            <Image src="/Group 2.png" alt="" width={28} height={28} className="object-contain" />
+            <Image src="/CowryPay.png" alt="CowryPay" width={110} height={28} className="object-contain" />
+          </div>
         <div className="flex items-center gap-3">
           <span className="text-cowry-muted text-lg cursor-pointer hover:text-white transition-colors">⚙</span>
           <Link
@@ -301,8 +304,9 @@ export default function LandingPage() {
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-cowry-border px-6 py-8">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Image src="/CowryPay.png" alt="CowryPay" width={90} height={24} className="object-contain" />
+          <div className="flex items-center gap-2">
+            <Image src="/Group 2.png" alt="" width={22} height={22} className="object-contain" />
+            <Image src="/CowryPay.png" alt="CowryPay" width={85} height={22} className="object-contain" />
             <span className="text-cowry-muted text-xs">· Talk. Send. Automate.</span>
           </div>
           <p className="text-xs text-cowry-muted">© 2026 CowryPay</p>
