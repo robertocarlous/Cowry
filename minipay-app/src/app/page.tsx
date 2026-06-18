@@ -10,7 +10,16 @@ const CURRENCIES = [
   { flag: "/Malawi.png",   code: "MWK" },
 ];
 
-const CHAINS = ["Optimism", "Arbitrum", "BNB Chain", "Scroll", "Linea", "Base", "Polygon", "Ethereum"];
+const CHAINS = [
+  { name: "Optimism", logo: "/Optimism.svg" },
+  { name: "Arbitrum", logo: "/Arbitrum.svg" },
+  { name: "BNB Chain", logo: "/BNBChain.svg" },
+  { name: "Scroll",   logo: "/Scroll.svg" },
+  { name: "Linea",    logo: "/Linea.svg" },
+  { name: "Base",     logo: "/Base.svg" },
+  { name: "Polygon",  logo: "/Polygon.svg" },
+  { name: "Ethereum", logo: "/Ethereum.svg" },
+];
 
 const FEATURES = [
   {
@@ -138,10 +147,11 @@ export default function LandingPage() {
           <div className="flex items-center justify-center gap-3 flex-wrap">
             {CHAINS.map((c) => (
               <div
-                key={c}
+                key={c.name}
                 className="flex items-center gap-2 bg-cowry-card border border-cowry-border rounded-full px-4 py-2"
               >
-                <span className="text-sm font-medium text-cowry-muted">{c}</span>
+                <Image src={c.logo} alt={c.name} width={20} height={20} className="rounded-full object-contain" />
+                <span className="text-sm font-medium text-white">{c.name}</span>
               </div>
             ))}
           </div>
