@@ -16,6 +16,13 @@ interface Category {
 
 const CATEGORIES: Category[] = [
   {
+    icon: "💵",
+    title: "Buy USDC",
+    commands: [
+      { label: "Buy USDC with local currency",   template: "Buy USDC with ",  desc: "Top up your wallet using a local bank transfer — no crypto needed" },
+    ],
+  },
+  {
     icon: "🌍",
     title: "Send Abroad",
     commands: [
