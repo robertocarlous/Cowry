@@ -1,6 +1,6 @@
 import type { PaymentAction } from "./schemas.js";
 import type { CachedOpportunity, PendingYieldDeposit } from "./lifi/types.js";
-import type { PendingRemittance, PendingRemittanceQuote } from "./remittance/types.js";
+import type { PendingOnRamp, PendingOnRampOrder, PendingRemittance, PendingRemittanceQuote } from "./remittance/types.js";
 
 // ── WhatsApp / Webhook types ──────────────────────────────────────────────────
 
@@ -219,6 +219,23 @@ export type ChatResponse =
       rateLabel: string;
       /** Platform fee displayed to the user, e.g. "0.5 USDC". */
       feeLabel: string;
+    }
+  | {
+      /** On-ramp order created — shows virtual bank account for user to pay into. */
+      type: "onramp_virtual_account";
+      preview: string;
+      /** Name of the bank to pay */
+      bank: string;
+      accountNumber: string;
+      accountName: string;
+      /** Exact fiat amount to transfer */
+      amountToTransfer: string;
+      fiatCurrency: string;
+      /** Approximate USDC the user will receive */
+      estimatedUsdc: string;
+      /** ISO timestamp — order expires if not paid before this */
+      validUntil: string;
+      orderId: string;
     };
 
 export type TxHistoryItem = {
@@ -242,4 +259,8 @@ export type SessionState = {
   pendingRemittance?: PendingRemittance;
   /** Fully-resolved remittance quote awaiting user confirm */
   pendingRemittanceQuote?: PendingRemittanceQuote;
+  /** On-ramp details collected so far, awaiting more slots from user */
+  pendingOnRamp?: PendingOnRamp;
+  /** Confirmed on-ramp order awaiting user's fiat bank transfer */
+  pendingOnRampOrder?: PendingOnRampOrder;
 };

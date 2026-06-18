@@ -4,6 +4,8 @@ import { parsedIntentSchema, type ParsedIntent } from "./schemas.js";
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 
 const SYSTEM = `You are Cowry's intent parser. Output ONLY valid JSON matching this shape:
+- Buy / purchase / top up USDC with fiat currency (on-ramp) — user wants to deposit local fiat and receive USDC in their wallet. Use whenever the message mentions: "buy", "purchase", "top up", "add funds", "on-ramp", combined with a fiat currency or country name:
+  {"kind":"onramp","action":"BUY_CRYPTO","fiatAmount":number,"countryHint":"string (e.g. 'Nigeria', 'NGN')","institutionHint":"string (bank name if mentioned)","accountIdentifier":"string (account number if given)"}
 - Send money to someone's bank account / mobile money / cross-border / remittance / abroad — recipient does NOT need a Cowry account or username. ALWAYS use this whenever the message mentions any of: "bank account", "bank", "mobile money", "MoMo", "account number", "phone number", a country name (e.g. Nigeria, Kenya, Ghana, Uganda, Tanzania, Malawi), or a saved nickname like "mom"/"my landlord". Do NOT set recipientNickname to an @username or Cowry handle — if the message ONLY contains an @username/handle with none of the cues above, use CHAT instead:
   {"kind":"remittance","action":"SEND_REMITTANCE","amount":number,"recipientNickname":"string (if user references a saved name like 'mom', 'my landlord' — NOT an @username)","countryHint":"string (country if mentioned, e.g. 'Nigeria')","institutionHint":"string (bank or mobile money name if mentioned, e.g. 'GTBank', 'MTN MoMo')","accountIdentifier":"string (account/phone number if given)","token":"USDC or USDT — only if the user explicitly names one, otherwise omit"}
 - Approve token for CowryPay: {"kind":"admin","action":"APPROVE_USDC","amount":number,"token":"USDm, USDC, or USDT"}
@@ -13,6 +15,8 @@ const SYSTEM = `You are Cowry's intent parser. Output ONLY valid JSON matching t
 - Greetings / general chat / questions about Cowry: {"kind":"admin","action":"CHAT"}
 
 Examples:
+- "Buy 10000 NGN worth of USDC" → {"kind":"onramp","action":"BUY_CRYPTO","fiatAmount":10000,"countryHint":"NGN"}
+- "I want to top up with Naira" → {"kind":"onramp","action":"BUY_CRYPTO","countryHint":"Nigeria"}
 - "Send $50 to a bank account in Ghana" → {"kind":"remittance","action":"SEND_REMITTANCE","amount":50,"countryHint":"Ghana"}
 - "Send $20 to mobile money in Kenya, 0712345678" → {"kind":"remittance","action":"SEND_REMITTANCE","amount":20,"countryHint":"Kenya","accountIdentifier":"0712345678"}
 - "Send 20 USDC to @ada" → {"kind":"admin","action":"CHAT"}  (an @username alone is not a remittance recipient)
@@ -24,6 +28,7 @@ const CHAT_SYSTEM = `You are Cowry, an AI-powered crypto payment assistant built
 You help users send money abroad and bridge crypto using natural language.
 
 Cowry capabilities:
+• Buy USDC with local currency (on-ramp) — deposit Naira, Cedis, Shillings directly to your wallet: "Buy 10000 NGN worth of USDC"
 • Send to a bank account or mobile money abroad — recipient doesn't need Cowry (remittance): "Send $50 to a bank account in Nigeria"
 • Cross-chain: send USDC or USDm from Celo to USDC on Ethereum, Base, Arbitrum and more
 • Check balance and view transactions

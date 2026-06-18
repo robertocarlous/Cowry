@@ -3,7 +3,7 @@ import { Redis } from "@upstash/redis";
 import type { DraftRecord } from "./schemas.js";
 import type { SessionState } from "./types.js";
 import type { CachedOpportunity, PendingYieldDeposit } from "./lifi/types.js";
-import type { PendingRemittance, PendingRemittanceQuote } from "./remittance/types.js";
+import type { PendingOnRamp, PendingOnRampOrder, PendingRemittance, PendingRemittanceQuote } from "./remittance/types.js";
 
 let redisClient: Redis | null = null;
 
@@ -164,4 +164,46 @@ export async function setPendingRemittanceQuote(
 /** Retrieve the pending remittance quote for a session */
 export async function getPendingRemittanceQuote(sessionId: string): Promise<PendingRemittanceQuote | undefined> {
   return (await getSession(sessionId)).pendingRemittanceQuote;
+}
+
+// ── On-ramp session helpers ───────────────────────────────────────────────────
+
+export async function setPendingOnRamp(sessionId: string, onramp: PendingOnRamp | null): Promise<void> {
+  const s = await getSession(sessionId);
+  if (onramp === null) delete s.pendingOnRamp;
+  else s.pendingOnRamp = onramp;
+  await saveSession(sessionId, s);
+}
+
+export async function getPendingOnRamp(sessionId: string): Promise<PendingOnRamp | undefined> {
+  return (await getSession(sessionId)).pendingOnRamp;
+}
+
+export async function setPendingOnRampOrder(sessionId: string, order: PendingOnRampOrder | null): Promise<void> {
+  const s = await getSession(sessionId);
+  if (order === null) delete s.pendingOnRampOrder;
+  else s.pendingOnRampOrder = order;
+  await saveSession(sessionId, s);
+}
+
+export async function getPendingOnRampOrder(sessionId: string): Promise<PendingOnRampOrder | undefined> {
+  return (await getSession(sessionId)).pendingOnRampOrder;
+}
+
+/** Map orderId → sessionId so the webhook can find the right session. */
+export async function setOnRampOrderSession(orderId: string, sessionId: string): Promise<void> {
+  await getRedis().set(`cowry:onramp:order:${orderId}`, sessionId, { ex: TTL_SECONDS });
+}
+
+export async function getOnRampOrderSession(orderId: string): Promise<string | null> {
+  return getRedis().get<string>(`cowry:onramp:order:${orderId}`);
+}
+
+/** Mark an on-ramp order as settled (called by the webhook). */
+export async function setOnRampOrderSettled(orderId: string, amountPaid: string): Promise<void> {
+  await getRedis().set(`cowry:onramp:settled:${orderId}`, amountPaid, { ex: TTL_SECONDS });
+}
+
+export async function getOnRampOrderSettled(orderId: string): Promise<string | null> {
+  return getRedis().get<string>(`cowry:onramp:settled:${orderId}`);
 }

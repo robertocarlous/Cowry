@@ -47,6 +47,12 @@ import {
   getPendingRemittance,
   setPendingRemittanceQuote,
   getPendingRemittanceQuote,
+  setPendingOnRamp,
+  getPendingOnRamp,
+  setPendingOnRampOrder,
+  getPendingOnRampOrder,
+  setOnRampOrderSession,
+  getOnRampOrderSettled,
 } from "./state.js";
 import type { ChatResponse, EncodedTxJson, TxHistoryItem } from "./types.js";
 import type { ResolutionDeps } from "./deps/types.js";
@@ -63,11 +69,12 @@ import {
   getInstitutions,
   verifyAccount,
   createOffRampOrder,
+  createOnRampOrder,
   type Institution,
 } from "./remittance/paycrestClient.js";
 import { findInstitutionMatches } from "./remittance/institutionMatch.js";
 import { findRecipientByNickname, decryptAccountIdentifier } from "./remittance/recipients.js";
-import type { PendingRemittance, PendingRemittanceQuote } from "./remittance/types.js";
+import type { PendingOnRamp, PendingRemittance, PendingRemittanceQuote } from "./remittance/types.js";
 
 function parseGroupId(
   raw: string | number | undefined | null,
@@ -1414,6 +1421,281 @@ async function continueRemittanceSlotFilling(
   );
 }
 
+// ── On-ramp / fiat → USDC (Paycrest) ─────────────────────────────────────────
+
+async function buildOnRampOrder(
+  sessionId: string,
+  pending: Required<Pick<PendingOnRamp, "fiatAmount" | "fiatCurrency" | "countryCode" | "institutionCode" | "institutionName" | "accountIdentifier">>,
+  walletAddress: `0x${string}`,
+  signal?: AbortSignal,
+): Promise<ChatResponse> {
+  // Verify the refund account so we have the canonical account name.
+  let accountName: string;
+  try {
+    accountName = await verifyAccount(pending.institutionCode, pending.accountIdentifier, signal);
+  } catch (e) {
+    await setPendingOnRamp(sessionId, {
+      fiatAmount: pending.fiatAmount,
+      fiatCurrency: pending.fiatCurrency,
+      countryCode: pending.countryCode,
+      institutionCode: pending.institutionCode,
+      institutionName: pending.institutionName,
+    });
+    return {
+      type: "clarify",
+      question: `Couldn't verify that account (${
+        e instanceof Error ? e.message : String(e)
+      }). Please double-check the account number and send it again.`,
+    };
+  }
+
+  const resolvedName = accountName.toUpperCase() === "OK" ? "Account holder" : accountName;
+
+  let order;
+  try {
+    order = await createOnRampOrder({
+      fiatAmount: pending.fiatAmount,
+      fiatCurrency: pending.fiatCurrency,
+      refundInstitution: pending.institutionCode,
+      refundAccountIdentifier: pending.accountIdentifier,
+      refundAccountName: resolvedName,
+      toCurrency: "USDC",
+      recipientAddress: walletAddress,
+      network: "celo",
+    }, signal);
+  } catch (e) {
+    await setPendingOnRamp(sessionId, null);
+    return {
+      type: "clarify",
+      question: `Couldn't create the on-ramp order (${
+        e instanceof Error ? e.message : String(e)
+      }). Please try again in a moment.`,
+    };
+  }
+
+  const rateNum = Number(order.rate);
+  const estimatedUsdc = rateNum > 0
+    ? (pending.fiatAmount / rateNum).toLocaleString(undefined, { maximumFractionDigits: 4 })
+    : "—";
+  const symbol = getCurrencySymbol(pending.fiatCurrency);
+  const expiry = new Date(order.validUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  // Store order state and orderId → sessionId mapping for the webhook.
+  await setPendingOnRamp(sessionId, null);
+  await setPendingOnRampOrder(sessionId, {
+    orderId: order.id,
+    fiatAmount: pending.fiatAmount,
+    fiatCurrency: pending.fiatCurrency,
+    providerBank: order.providerBank,
+    providerAccountNumber: order.providerAccountNumber,
+    providerAccountName: order.providerAccountName,
+    amountToTransfer: order.amountToTransfer,
+    validUntil: order.validUntil,
+    rate: order.rate,
+  });
+  await setOnRampOrderSession(order.id, sessionId);
+
+  const preview =
+    `💰 Buy USDC\n` +
+    `Send ${symbol}${order.amountToTransfer} ${pending.fiatCurrency} to:\n` +
+    `Bank: ${order.providerBank}\n` +
+    `Account: ${order.providerAccountNumber}\n` +
+    `Name: ${order.providerAccountName}\n` +
+    `You'll receive: ~${estimatedUsdc} USDC\n` +
+    `Expires: ${expiry}\n\n` +
+    `Once you've made the transfer, your USDC will arrive automatically.`;
+
+  return {
+    type: "onramp_virtual_account",
+    preview,
+    bank: order.providerBank,
+    accountNumber: order.providerAccountNumber,
+    accountName: order.providerAccountName,
+    amountToTransfer: order.amountToTransfer,
+    fiatCurrency: pending.fiatCurrency,
+    estimatedUsdc,
+    validUntil: order.validUntil,
+    orderId: order.id,
+  };
+}
+
+async function continueOnRampSlotFilling(
+  sessionId: string,
+  pending: PendingOnRamp,
+  walletAddress: `0x${string}`,
+  answer?: string,
+  signal?: AbortSignal,
+): Promise<ChatResponse> {
+  let unconsumed = answer?.trim() || undefined;
+
+  // 1. Currency / country
+  if (!pending.fiatCurrency) {
+    if (unconsumed) {
+      const country = resolveCountry(unconsumed);
+      unconsumed = undefined;
+      if (country) {
+        pending.countryCode = country.countryCode;
+        pending.fiatCurrency = country.currencyCode;
+      } else {
+        await setPendingOnRamp(sessionId, pending);
+        return {
+          type: "clarify",
+          question: `I didn't recognise that currency. Which country are you paying from? (${SUPPORTED_COUNTRIES.join(", ")})`,
+        };
+      }
+    } else {
+      await setPendingOnRamp(sessionId, pending);
+      return {
+        type: "clarify",
+        question: `Which country are you paying from? (${SUPPORTED_COUNTRIES.join(", ")})`,
+      };
+    }
+  }
+
+  // 2. Refund bank (in case the deposit fails/expires)
+  if (!pending.institutionCode) {
+    if (pending.institutionCandidates && unconsumed) {
+      const idx = parseInt(unconsumed.trim(), 10);
+      const choice = pending.institutionCandidates[idx - 1];
+      if (Number.isInteger(idx) && choice) {
+        pending.institutionCode = choice.code;
+        pending.institutionName = choice.name;
+        pending.institutionCandidates = undefined;
+        unconsumed = undefined;
+      } else {
+        pending.institutionCandidates = undefined;
+      }
+    }
+
+    if (!pending.institutionCode) {
+      if (unconsumed) {
+        pending.institutionQuery = unconsumed;
+        unconsumed = undefined;
+      } else if (!pending.institutionQuery) {
+        await setPendingOnRamp(sessionId, pending);
+        return {
+          type: "clarify",
+          question: "What's your bank name? (needed for refunds if the transfer fails)",
+        };
+      }
+
+      let institutions: Institution[];
+      try {
+        institutions = await getInstitutions(pending.fiatCurrency, signal);
+      } catch (e) {
+        await setPendingOnRamp(sessionId, pending);
+        return {
+          type: "clarify",
+          question: `Could not look up banks right now (${
+            e instanceof Error ? e.message : String(e)
+          }). Please try again.`,
+        };
+      }
+
+      const matches = findInstitutionMatches(pending.institutionQuery!, institutions);
+      if (matches.length === 1) {
+        pending.institutionCode = matches[0]!.code;
+        pending.institutionName = matches[0]!.name;
+        pending.institutionQuery = undefined;
+      } else if (matches.length === 0) {
+        pending.institutionQuery = undefined;
+        pending.institutionCandidates = institutions.map((i) => ({ name: i.name, code: i.code }));
+        await setPendingOnRamp(sessionId, pending);
+        const list = institutions.map((i, idx) => `${idx + 1}. ${i.name}`).join("\n");
+        return {
+          type: "clarify",
+          question: `Couldn't find that bank. Reply with a number:\n${list}`,
+        };
+      } else {
+        pending.institutionQuery = undefined;
+        pending.institutionCandidates = matches.map((m) => ({ name: m.name, code: m.code }));
+        await setPendingOnRamp(sessionId, pending);
+        const list = matches.map((m, idx) => `${idx + 1}. ${m.name}`).join("\n");
+        return {
+          type: "clarify",
+          question: `Found a few matches. Reply with a number:\n${list}`,
+        };
+      }
+    }
+  }
+
+  // 3. Refund account number
+  if (!pending.accountIdentifier) {
+    if (unconsumed) {
+      pending.accountIdentifier = unconsumed;
+    } else {
+      await setPendingOnRamp(sessionId, pending);
+      return {
+        type: "clarify",
+        question: "What's your account number? (for refunds only — your USDC goes straight to your wallet)",
+      };
+    }
+  }
+
+  return buildOnRampOrder(
+    sessionId,
+    {
+      fiatAmount: pending.fiatAmount,
+      fiatCurrency: pending.fiatCurrency!,
+      countryCode: pending.countryCode!,
+      institutionCode: pending.institutionCode!,
+      institutionName: pending.institutionName!,
+      accountIdentifier: pending.accountIdentifier,
+    },
+    walletAddress,
+    signal,
+  );
+}
+
+export async function onrampFromIntent(
+  intent: ParsedIntent,
+  walletAddress: `0x${string}` | undefined,
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<ChatResponse> {
+  if (intent.kind !== "onramp") {
+    return { type: "clarify", question: "Not an on-ramp command." };
+  }
+  if (!walletAddress) {
+    return { type: "clarify", question: "Connect your wallet so Cowry knows where to send your USDC." };
+  }
+
+  const existing = await getPendingOnRamp(sessionId);
+  const fiatAmount = intent.fiatAmount ?? existing?.fiatAmount;
+  if (!fiatAmount || !(fiatAmount > 0)) {
+    return {
+      type: "clarify",
+      question: "How much do you want to deposit? e.g. buy 10000 NGN worth of USDC",
+    };
+  }
+
+  const pending: PendingOnRamp = {
+    fiatAmount,
+    fiatCurrency: existing?.fiatCurrency,
+    countryCode: existing?.countryCode,
+    institutionQuery: existing?.institutionQuery,
+    institutionCode: existing?.institutionCode,
+    institutionName: existing?.institutionName,
+    accountIdentifier: existing?.accountIdentifier,
+  };
+
+  if (intent.countryHint && !pending.fiatCurrency) {
+    const country = resolveCountry(intent.countryHint);
+    if (country) {
+      pending.countryCode = country.countryCode;
+      pending.fiatCurrency = country.currencyCode;
+    }
+  }
+  if (intent.institutionHint && !pending.institutionCode && !pending.institutionQuery) {
+    pending.institutionQuery = intent.institutionHint;
+  }
+  if (intent.accountIdentifier && !pending.accountIdentifier) {
+    pending.accountIdentifier = intent.accountIdentifier;
+  }
+
+  return continueOnRampSlotFilling(sessionId, pending, walletAddress, undefined, signal);
+}
+
 export async function remittanceFromIntent(
   intent: ParsedIntent,
   walletAddress: `0x${string}` | undefined,
@@ -1663,6 +1945,33 @@ export async function handleUserMessage(
     }
   }
 
+  // ── Pending on-ramp slot-filling ─────────────────────────────────────────
+  const pendingOnRamp = await getPendingOnRamp(sessionId);
+  if (pendingOnRamp && !CONFIRM_RE.test(t) && !CANCEL_RE.test(t)) {
+    if (!walletAddress) {
+      return { type: "clarify", question: "Connect your wallet so Cowry knows where to send your USDC." };
+    }
+    return continueOnRampSlotFilling(sessionId, pendingOnRamp, walletAddress, t, signal);
+  }
+
+  // ── Settled on-ramp order notification ───────────────────────────────────
+  // Check if a previously created on-ramp order has been settled by Paycrest
+  // (webhook wrote the settlement flag to Redis).
+  const pendingOnRampOrder = await getPendingOnRampOrder(sessionId);
+  if (pendingOnRampOrder) {
+    const settled = await getOnRampOrderSettled(pendingOnRampOrder.orderId);
+    if (settled) {
+      await setPendingOnRampOrder(sessionId, null);
+      const symbol = getCurrencySymbol(pendingOnRampOrder.fiatCurrency);
+      return {
+        type: "info",
+        message:
+          `✅ Your ${symbol}${pendingOnRampOrder.amountToTransfer} deposit has been confirmed! ` +
+          `${settled} USDC has been sent to your wallet on Celo.\n\nOrder: ${pendingOnRampOrder.orderId}`,
+      };
+    }
+  }
+
   // ── Pending remittance slot-filling ───────────────────────────────────────
   // User was asked for a country / bank / account number — treat the next
   // message as the answer to that question.
@@ -1809,6 +2118,15 @@ export async function handleUserMessage(
   }
 
   if (CANCEL_RE.test(t)) {
+    // Clear on-ramp if pending
+    if (await getPendingOnRamp(sessionId)) {
+      await setPendingOnRamp(sessionId, null);
+      return { type: "cancelled", message: "On-ramp cancelled. What next?" };
+    }
+    if (await getPendingOnRampOrder(sessionId)) {
+      await setPendingOnRampOrder(sessionId, null);
+      return { type: "cancelled", message: "On-ramp order dismissed. What next?" };
+    }
     // Clear remittance quote/slot-filling if pending
     if (await getPendingRemittanceQuote(sessionId)) {
       await setPendingRemittanceQuote(sessionId, null);
@@ -1864,6 +2182,11 @@ export async function handleUserMessage(
       message: a.message,
       ...(a.transactions?.length ? { transactions: a.transactions } : {}),
     };
+  }
+
+  // ── On-ramp / fiat → USDC intents ──────────────────────────────────────────
+  if (intent.kind === "onramp") {
+    return onrampFromIntent(intent, walletAddress, sessionId, signal);
   }
 
   // ── LI.FI Earn intents ─────────────────────────────────────────────────────

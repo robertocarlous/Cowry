@@ -1,3 +1,36 @@
+// ── On-ramp (fiat → USDC) ─────────────────────────────────────────────────────
+
+/** State while collecting on-ramp details across chat turns. */
+export type PendingOnRamp = {
+  fiatAmount: number;
+  fiatCurrency?: string;
+  countryCode?: string;
+  /** User's own bank (for refund if order fails/expires) */
+  institutionQuery?: string;
+  institutionCode?: string;
+  institutionName?: string;
+  accountIdentifier?: string;
+  institutionCandidates?: { name: string; code: string }[];
+};
+
+/** A confirmed on-ramp order awaiting the user's fiat bank transfer. */
+export type PendingOnRampOrder = {
+  orderId: string;
+  fiatAmount: number;
+  fiatCurrency: string;
+  /** Paycrest virtual bank the user must pay into */
+  providerBank: string;
+  providerAccountNumber: string;
+  providerAccountName: string;
+  /** Exact amount Paycrest requires — may differ from fiatAmount due to rounding */
+  amountToTransfer: string;
+  validUntil: string;
+  /** Exchange rate (1 USDC = X fiatCurrency) */
+  rate: string;
+};
+
+// ── Off-ramp (USDC → fiat) ────────────────────────────────────────────────────
+
 /** A recipient saved by the SENDER for fast reuse ("Mom", "Landlord", ...). */
 export type SavedRecipient = {
   /** Lowercased nickname, used for matching ("mom"). */

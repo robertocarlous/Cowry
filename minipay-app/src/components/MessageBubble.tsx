@@ -3,6 +3,7 @@ import type { Message } from "@/lib/types";
 import { TransactionCard } from "./TransactionCard";
 import { TxHistoryCard } from "./TxHistoryCard";
 import { RemittanceQuoteCard } from "./RemittanceQuoteCard";
+import { OnRampCard } from "./OnRampCard";
 
 interface Props {
   message:    Message;
@@ -99,6 +100,20 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
         {/* Transaction history */}
         {r?.type === "tx_history" && (
           <TxHistoryCard items={r.items} />
+        )}
+
+        {/* On-ramp virtual account */}
+        {r?.type === "onramp_virtual_account" && (
+          <OnRampCard
+            bank={r.bank}
+            accountNumber={r.accountNumber}
+            accountName={r.accountName}
+            amountToTransfer={r.amountToTransfer}
+            fiatCurrency={r.fiatCurrency}
+            estimatedUsdc={r.estimatedUsdc}
+            validUntil={r.validUntil}
+            orderId={r.orderId}
+          />
         )}
 
         {/* Cross-border remittance quote */}

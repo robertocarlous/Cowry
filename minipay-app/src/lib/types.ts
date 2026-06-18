@@ -65,6 +65,19 @@ export type ChatResponse =
       rateLabel: string;
       /** Platform fee displayed to the user, e.g. "0.5 USDC". */
       feeLabel: string;
+    }
+  | {
+      /** On-ramp order created — shows virtual bank account for user to pay into. */
+      type: "onramp_virtual_account";
+      preview: string;
+      bank: string;
+      accountNumber: string;
+      accountName: string;
+      amountToTransfer: string;
+      fiatCurrency: string;
+      estimatedUsdc: string;
+      validUntil: string;
+      orderId: string;
     };
 
 export type TxHistoryItem = {

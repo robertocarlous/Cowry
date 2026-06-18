@@ -93,6 +93,18 @@ export const parsedIntentSchema = z.discriminatedUnion("kind", [
     token: z.string().optional(),
   }),
   z.object({
+    kind: z.literal("onramp"),
+    action: z.literal("BUY_CRYPTO"),
+    /** Fiat amount to spend, e.g. 10000 for ₦10,000 */
+    fiatAmount: z.number().positive().optional(),
+    /** Fiat currency or country hint, e.g. "NGN" or "Nigeria" */
+    countryHint: z.string().optional(),
+    /** User's bank name hint for refund account, e.g. "GTBank" */
+    institutionHint: z.string().optional(),
+    /** User's bank account number for refund */
+    accountIdentifier: z.string().optional(),
+  }),
+  z.object({
     kind: z.literal("unknown"),
     rawSummary: z.string(),
   }),

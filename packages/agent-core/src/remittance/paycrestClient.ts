@@ -118,6 +118,139 @@ export interface OffRampOrder {
   network: string;
 }
 
+export interface CreateOnRampParams {
+  /** Fiat amount to convert, e.g. 10000 for 10000 NGN */
+  fiatAmount: number;
+  /** Fiat currency code, e.g. "NGN" */
+  fiatCurrency: string;
+  /** Refund bank account — where fiat goes back if order fails/expires */
+  refundInstitution: string;
+  refundAccountIdentifier: string;
+  refundAccountName: string;
+  /** Destination crypto token, e.g. "USDC" */
+  toCurrency: string;
+  /** Destination wallet address */
+  recipientAddress: string;
+  /** Destination network, e.g. "celo" */
+  network: string;
+  reference?: string;
+}
+
+export interface OnRampOrder {
+  id: string;
+  status: string;
+  rate: string;
+  /** Virtual fiat bank account the user must pay to */
+  providerBank: string;
+  providerAccountNumber: string;
+  providerAccountName: string;
+  /** Exact fiat amount to transfer (locked) */
+  amountToTransfer: string;
+  fiatCurrency: string;
+  validUntil: string;
+}
+
+export interface OrderStatus {
+  id: string;
+  status: string;
+  /** Amount of crypto sent to the recipient (present when settled) */
+  amountPaid?: string;
+}
+
+/**
+ * Get the status of an existing Paycrest order (on-ramp or off-ramp).
+ * Requires PAYCREST_API_KEY.
+ */
+export async function getOrderStatus(orderId: string, signal?: AbortSignal): Promise<OrderStatus> {
+  const apiKey = process.env.PAYCREST_API_KEY?.trim();
+  if (!apiKey) throw new Error("PAYCREST_API_KEY env var is not set");
+  const res = await fetch(`${PAYCREST_BASE}/sender/orders/${orderId}`, {
+    headers: { Accept: "application/json", "API-Key": apiKey },
+    signal,
+  });
+  if (!res.ok) throw new Error(`Paycrest order status error ${res.status}: ${await readError(res)}`);
+  const body = (await res.json()) as { data?: { id: string; status: string; amountPaid?: string } };
+  if (!body.data) throw new Error("Paycrest order status response missing data");
+  return { id: body.data.id, status: body.data.status, amountPaid: body.data.amountPaid };
+}
+
+/**
+ * Create an on-ramp order. Returns a virtual bank account the user must pay
+ * fiat to. Once Paycrest detects the deposit the crypto is released to
+ * `recipientAddress` on `network`.
+ * Requires PAYCREST_API_KEY.
+ */
+export async function createOnRampOrder(params: CreateOnRampParams, signal?: AbortSignal): Promise<OnRampOrder> {
+  const apiKey = process.env.PAYCREST_API_KEY?.trim();
+  if (!apiKey) throw new Error("PAYCREST_API_KEY env var is not set");
+
+  const res = await fetch(`${PAYCREST_BASE}/sender/orders`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "API-Key": apiKey,
+    },
+    signal,
+    body: JSON.stringify({
+      amount: String(params.fiatAmount),
+      amountIn: "fiat",
+      source: {
+        type: "fiat",
+        currency: params.fiatCurrency,
+        refundAccount: {
+          institution: params.refundInstitution,
+          accountIdentifier: params.refundAccountIdentifier,
+          accountName: params.refundAccountName,
+        },
+      },
+      destination: {
+        type: "crypto",
+        currency: params.toCurrency,
+        recipient: {
+          address: params.recipientAddress,
+          network: params.network,
+        },
+      },
+      ...(params.reference ? { reference: params.reference } : {}),
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Paycrest on-ramp order error ${res.status}: ${await readError(res)}`);
+
+  const body = (await res.json()) as {
+    data?: {
+      id: string;
+      status: string;
+      rate: string;
+      providerAccount?: {
+        institution: string;
+        accountIdentifier: string;
+        accountName: string;
+        amountToTransfer: string;
+        currency: string;
+        validUntil: string;
+      };
+    };
+  };
+
+  const data = body.data;
+  if (!data?.providerAccount?.accountIdentifier) {
+    throw new Error("Paycrest on-ramp response missing providerAccount details");
+  }
+  return {
+    id: data.id,
+    status: data.status,
+    rate: data.rate,
+    providerBank: data.providerAccount.institution,
+    providerAccountNumber: data.providerAccount.accountIdentifier,
+    providerAccountName: data.providerAccount.accountName,
+    amountToTransfer: data.providerAccount.amountToTransfer,
+    fiatCurrency: data.providerAccount.currency,
+    validUntil: data.providerAccount.validUntil,
+  };
+}
+
 /**
  * Create an off-ramp order. This LOCKS the real exchange rate and returns the
  * on-chain `receiveAddress` that must be funded with USDC to execute the payout.
