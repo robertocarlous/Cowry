@@ -134,10 +134,10 @@ export default function LandingPage() {
               {[...CURRENCIES, ...CURRENCIES].map((c, i) => (
                 <div
                   key={`${c.code}-${i}`}
-                  className="flex items-center gap-2 bg-cowry-card border border-cowry-border rounded-full px-4 py-2 flex-shrink-0"
+                  className="flex items-center gap-3 bg-cowry-card border border-cowry-border rounded-full px-5 py-3 flex-shrink-0"
                 >
-                  <Image src={c.flag} alt={c.code} width={24} height={24} className="rounded-full object-cover" />
-                  <span className="text-sm font-semibold text-white">{c.code}</span>
+                  <Image src={c.flag} alt={c.code} width={36} height={36} className="rounded-full object-cover" />
+                  <span className="text-base font-semibold text-white">{c.code}</span>
                 </div>
               ))}
             </div>
@@ -154,10 +154,10 @@ export default function LandingPage() {
               {[...CHAINS, ...CHAINS].map((c, i) => (
                 <div
                   key={`${c.name}-${i}`}
-                  className="flex items-center gap-2 bg-cowry-card border border-cowry-border rounded-full px-4 py-2 flex-shrink-0"
+                  className="flex items-center gap-3 bg-cowry-card border border-cowry-border rounded-full px-5 py-3 flex-shrink-0"
                 >
-                  <Image src={c.logo} alt={c.name} width={20} height={20} className="rounded-full object-contain" />
-                  <span className="text-sm font-medium text-white">{c.name}</span>
+                  <Image src={c.logo} alt={c.name} width={32} height={32} className="rounded-full object-contain" />
+                  <span className="text-base font-medium text-white">{c.name}</span>
                 </div>
               ))}
             </div>
