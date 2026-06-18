@@ -124,39 +124,43 @@ export default function LandingPage() {
           </a>
         </div>
 
-        {/* ── Supported Currencies ─────────────────────────────────────── */}
+        {/* ── Supported Currencies — scrolls left ──────────────────────── */}
         <div className="mb-10">
           <p className="text-cowry-muted text-xs font-semibold tracking-widest uppercase mb-5">
             Supported Currencies
           </p>
-          <div className="flex items-center justify-center gap-3 flex-wrap">
-            {CURRENCIES.map((c) => (
-              <div
-                key={c.code}
-                className="flex items-center gap-2 bg-cowry-card border border-cowry-border rounded-full px-4 py-2"
-              >
-                <Image src={c.flag} alt={c.code} width={24} height={24} className="rounded-full object-cover" />
-                <span className="text-sm font-semibold text-white">{c.code}</span>
-              </div>
-            ))}
+          <div className="overflow-hidden w-full">
+            <div className="flex gap-3 w-max marquee-left">
+              {[...CURRENCIES, ...CURRENCIES].map((c, i) => (
+                <div
+                  key={`${c.code}-${i}`}
+                  className="flex items-center gap-2 bg-cowry-card border border-cowry-border rounded-full px-4 py-2 flex-shrink-0"
+                >
+                  <Image src={c.flag} alt={c.code} width={24} height={24} className="rounded-full object-cover" />
+                  <span className="text-sm font-semibold text-white">{c.code}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* ── Supported Chains ─────────────────────────────────────────── */}
+        {/* ── Supported Chains — scrolls right ─────────────────────────── */}
         <div className="mb-16">
           <p className="text-cowry-muted text-xs font-semibold tracking-widest uppercase mb-5">
             Supported Chains for Cross-Chain Send
           </p>
-          <div className="flex items-center justify-center gap-3 flex-wrap">
-            {CHAINS.map((c) => (
-              <div
-                key={c.name}
-                className="flex items-center gap-2 bg-cowry-card border border-cowry-border rounded-full px-4 py-2"
-              >
-                <Image src={c.logo} alt={c.name} width={20} height={20} className="rounded-full object-contain" />
-                <span className="text-sm font-medium text-white">{c.name}</span>
-              </div>
-            ))}
+          <div className="overflow-hidden w-full">
+            <div className="flex gap-3 w-max marquee-right">
+              {[...CHAINS, ...CHAINS].map((c, i) => (
+                <div
+                  key={`${c.name}-${i}`}
+                  className="flex items-center gap-2 bg-cowry-card border border-cowry-border rounded-full px-4 py-2 flex-shrink-0"
+                >
+                  <Image src={c.logo} alt={c.name} width={20} height={20} className="rounded-full object-contain" />
+                  <span className="text-sm font-medium text-white">{c.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 

@@ -19,6 +19,22 @@
   text-shadow: 0 0 40px rgba(0, 212, 255, 0.5);
 }
 
+/* Infinite marquee scroll */
+@keyframes marquee-left {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes marquee-right {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+.marquee-left {
+  animation: marquee-left 30s linear infinite;
+}
+.marquee-right {
+  animation: marquee-right 30s linear infinite;
+}
+
 /* Gradient border */
 .gradient-border {
   border: 1px solid transparent;
