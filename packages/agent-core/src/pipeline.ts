@@ -852,72 +852,56 @@ export async function adminFromIntent(
     if (!wallet) {
       return { kind: "info", message: "Connect your wallet to view your transaction history." };
     }
-    if (deps.mode !== "chain" || !deps.publicClient) {
-      return { kind: "info", message: "Transaction history requires an RPC connection." };
-    }
     try {
-      const USDM = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as `0x${string}`;
-      const USDC = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C" as `0x${string}`;
-      const TRANSFER_EVENT = {
-        name: "Transfer",
-        type: "event" as const,
-        inputs: [
-          { name: "from",  type: "address" as const, indexed: true  },
-          { name: "to",    type: "address" as const, indexed: true  },
-          { name: "value", type: "uint256" as const, indexed: false },
-        ],
+      const KNOWN: Record<string, { symbol: "USDC" | "USDm" | "USDT"; decimals: number }> = {
+        "0xceba9300f2b948710d2653dd7b07f33a8b32118c": { symbol: "USDC",  decimals: 6  },
+        "0x765de816845861e75a25fca122bb6898b8b1282a": { symbol: "USDm",  decimals: 18 },
+        "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e": { symbol: "USDT",  decimals: 6  },
       };
 
-      const latestBlock = await deps.publicClient.getBlockNumber().catch(() => 0n);
-      const fromBlock   = latestBlock > 50_000n ? latestBlock - 50_000n : 0n;
+      const url = `https://api.celoscan.io/api?module=account&action=tokentx&address=${wallet}&sort=desc&offset=20&page=1`;
+      const res  = await fetch(url);
+      const json = await res.json() as { status: string; result: unknown[] | string };
 
-      const [usdmSent, usdmReceived, usdcSent, usdcReceived] = await Promise.all([
-        deps.publicClient.getLogs({ address: USDM, event: TRANSFER_EVENT, args: { from: wallet }, fromBlock, toBlock: "latest" }).catch(() => []),
-        deps.publicClient.getLogs({ address: USDM, event: TRANSFER_EVENT, args: { to:   wallet }, fromBlock, toBlock: "latest" }).catch(() => []),
-        deps.publicClient.getLogs({ address: USDC, event: TRANSFER_EVENT, args: { from: wallet }, fromBlock, toBlock: "latest" }).catch(() => []),
-        deps.publicClient.getLogs({ address: USDC, event: TRANSFER_EVENT, args: { to:   wallet }, fromBlock, toBlock: "latest" }).catch(() => []),
-      ]);
-
-      type RawLog = { transactionHash?: string | null; args?: Record<string, unknown>; blockNumber?: bigint | null };
-
-      const toItem = (log: RawLog, token: "USDC" | "USDm", direction: "sent" | "received") => {
-        const hash = log.transactionHash ?? "";
-        const args = log.args ?? {};
-        const rawValue = typeof args["value"] === "bigint" ? args["value"] : 0n;
-        const decimals  = token === "USDC" ? 6 : 18;
-        const amount    = (Number(rawValue) / 10 ** decimals).toLocaleString(undefined, { maximumFractionDigits: 4 });
-        const other     = direction === "sent"
-          ? (typeof args["to"]   === "string" ? args["to"]   : "")
-          : (typeof args["from"] === "string" ? args["from"] : "");
-        const short     = typeof other === "string" && other.length > 10
-          ? `${other.slice(0, 6)}…${other.slice(-4)}`
-          : String(other);
-        return {
-          hash,
-          direction,
-          amount: `${amount} ${token}`,
-          token,
-          counterparty: short,
-          explorerUrl: `https://celoscan.io/tx/${hash}`,
-          blockNumber: log.blockNumber ?? 0n,
-        };
-      };
-
-      const all = [
-        ...usdmSent.map(l => toItem(l as RawLog, "USDm", "sent")),
-        ...usdmReceived.map(l => toItem(l as RawLog, "USDm", "received")),
-        ...usdcSent.map(l => toItem(l as RawLog, "USDC", "sent")),
-        ...usdcReceived.map(l => toItem(l as RawLog, "USDC", "received")),
-      ]
-        .sort((a, b) => Number(b.blockNumber - a.blockNumber))
-        .slice(0, 10)
-        .map(({ blockNumber: _b, ...rest }) => rest);
-
-      if (all.length === 0) {
-        return { kind: "info", message: "No recent USDC or USDm transactions found for your wallet." };
+      if (json.status !== "1" || !Array.isArray(json.result)) {
+        return { kind: "info", message: "No recent transactions found for your wallet." };
       }
 
-      return { kind: "tx_history", items: all };
+      type CeloScanTx = {
+        hash: string;
+        from: string;
+        to: string;
+        value: string;
+        contractAddress: string;
+        tokenSymbol: string;
+        tokenDecimal: string;
+      };
+
+      const items: TxHistoryItem[] = (json.result as CeloScanTx[])
+        .filter(tx => KNOWN[tx.contractAddress.toLowerCase()])
+        .slice(0, 10)
+        .map(tx => {
+          const meta      = KNOWN[tx.contractAddress.toLowerCase()]!;
+          const direction = tx.from.toLowerCase() === wallet.toLowerCase() ? "sent" : "received";
+          const other     = direction === "sent" ? tx.to : tx.from;
+          const short     = `${other.slice(0, 6)}…${other.slice(-4)}`;
+          const amount    = (Number(BigInt(tx.value)) / 10 ** meta.decimals)
+            .toLocaleString(undefined, { maximumFractionDigits: 4 });
+          return {
+            hash:        tx.hash,
+            direction,
+            amount:      `${amount} ${meta.symbol}`,
+            token:       meta.symbol,
+            counterparty: short,
+            explorerUrl: `https://celoscan.io/tx/${tx.hash}`,
+          };
+        });
+
+      if (items.length === 0) {
+        return { kind: "info", message: "No recent USDC, USDT or USDm transactions found for your wallet." };
+      }
+
+      return { kind: "tx_history", items };
     } catch (e) {
       return { kind: "info", message: `Could not load transactions: ${e instanceof Error ? e.message : String(e)}` };
     }

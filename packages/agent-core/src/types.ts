@@ -242,7 +242,7 @@ export type TxHistoryItem = {
   hash: string;
   direction: "sent" | "received";
   amount: string;
-  token: "USDC" | "USDm";
+  token: "USDC" | "USDm" | "USDT";
   counterparty: string;  // short address e.g. "0xAbc…1234"
   explorerUrl: string;
 };

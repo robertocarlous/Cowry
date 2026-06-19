@@ -84,7 +84,7 @@ export type TxHistoryItem = {
   hash: string;
   direction: "sent" | "received";
   amount: string;
-  token: "USDC" | "USDm";
+  token: "USDC" | "USDm" | "USDT";
   counterparty: string;
   explorerUrl: string;
 };

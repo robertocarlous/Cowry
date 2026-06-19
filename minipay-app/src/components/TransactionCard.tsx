@@ -124,12 +124,26 @@ export function TransactionCard(props: Props) {
               </a>
             </span>
           </div>
-          <a href={props.explorerUrl} target="_blank" rel="noopener noreferrer"
-             className="flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 transition-colors">
-            <span>↗</span>
-            <span className="font-mono">{props.txHash.slice(0, 10)}…{props.txHash.slice(-6)}</span>
-            <span className="text-cowry-muted">· CeloScan</span>
-          </a>
+
+          {/* Tx hash row */}
+          <div className="flex items-center gap-2 bg-black/30 rounded-lg px-3 py-2">
+            <span className="text-xs text-cowry-muted shrink-0">Tx</span>
+            <span className="font-mono text-xs text-green-400 flex-1 truncate">
+              {props.txHash.slice(0, 14)}…{props.txHash.slice(-8)}
+            </span>
+            <button
+              onClick={() => navigator.clipboard.writeText(props.txHash)}
+              className="text-cowry-muted hover:text-white transition-colors text-xs shrink-0"
+              title="Copy transaction hash"
+            >
+              ⧉
+            </button>
+            <a href={props.explorerUrl} target="_blank" rel="noopener noreferrer"
+               className="text-cowry-blue hover:text-cowry-mint text-xs shrink-0 transition-colors"
+               title="View on CeloScan">
+              ↗
+            </a>
+          </div>
         </div>
       )}
 
