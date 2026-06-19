@@ -33,7 +33,7 @@ const FEATURES = [
     desc: `Just type or make a voice record of what you want — "Send $50 to a bank account in Nigeria". No forms, no manual entry, no complexity.`,
   },
   {
-    img: null,
+    img: "/send.png",
     title: "Cross-Chain Send",
     desc: "Send Celo USDC or USDm to anyone, they receive USDC on Ethereum, Base, Arbitrum, and 8 more chains.",
   },
