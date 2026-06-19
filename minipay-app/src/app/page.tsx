@@ -258,22 +258,20 @@ export default function LandingPage() {
 
           <div className="flex flex-col lg:flex-row gap-10 items-center">
 
-            {/* Single container card */}
-            <div className="flex-1 bg-cowry-card rounded-3xl overflow-hidden">
-              {STEPS.map((s, i) => (
-                <div
-                  key={s.n}
-                  className={`flex items-center gap-4 px-6 py-5 ${i < STEPS.length - 1 ? "border-b border-cowry-border" : ""}`}
-                >
-                  {/* Thin green left accent */}
-                  <div className="w-0.5 self-stretch bg-cowry-green flex-shrink-0 rounded-full" />
-                  {/* Number badge */}
-                  <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-cowry-green flex items-center justify-center">
-                    <span className="text-black font-black text-xs">{s.n}</span>
+            {/* Steps card — continuous green timeline line */}
+            <div className="flex-1 relative bg-[#1B1B1B] border border-[#263B25] rounded-xl overflow-hidden">
+
+              {/* Single continuous green line running full height */}
+              <div className="absolute left-[52px] top-0 bottom-0 w-0.5 bg-cowry-green" />
+
+              {STEPS.map((s) => (
+                <div key={s.n} className="flex items-start gap-5 px-6 py-6 relative">
+                  {/* Badge sits on top of the line */}
+                  <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-cowry-green flex items-center justify-center z-10">
+                    <span className="text-black font-black text-xl">{s.n}</span>
                   </div>
-                  {/* Text */}
-                  <div>
-                    <h3 className="font-bold text-white text-sm mb-0.5">{s.title}</h3>
+                  <div className="pt-1.5">
+                    <h3 className="font-bold text-white text-sm mb-1">{s.title}</h3>
                     <p className="text-cowry-muted text-xs leading-relaxed">{s.desc}</p>
                   </div>
                 </div>
