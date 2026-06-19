@@ -77,7 +77,7 @@ export default function LandingPage() {
             <Image src="/Group 3.png" alt="CowryPay" width={120} height={60} className="object-contain" />
           </div>
         <div className="flex items-center gap-3">
-          <span className="text-cowry-muted text-lg cursor-pointer hover:text-white transition-colors">⚙</span>
+          
           <Link
             href="/app"
             className="text-sm font-semibold bg-cowry-green text-black px-5 py-2 rounded-full hover:opacity-90 transition-opacity"
@@ -306,7 +306,7 @@ export default function LandingPage() {
             alt=""
             width={160}
             height={160}
-            className="absolute top-4 right-4 opacity-50"
+            className="absolute top-4 right-4 opacity-30"
           />
           <Image
             src="/Group 2.png"
