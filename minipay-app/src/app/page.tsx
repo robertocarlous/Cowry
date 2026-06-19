@@ -23,38 +23,32 @@ const CHAINS = [
 
 const FEATURES = [
   {
-    icon: "🌍",
-    color: "bg-teal-500/15 text-teal-400",
+    img: "/Abroad.png",
     title: "Send Money Abroad",
     desc: "Send USDC or USDT straight to a bank account or mobile money wallet in Nigeria, Kenya, Ghana, and more.",
   },
   {
-    icon: "💬",
-    color: "bg-cowry-green/15 text-cowry-green",
+    img: "/Talk.png",
     title: "Talk to Pay",
     desc: `Just type or make a voice record of what you want — "Send $50 to a bank account in Nigeria". No forms, no manual entry, no complexity.`,
   },
   {
-    icon: "⛓️",
-    color: "bg-indigo-500/15 text-indigo-400",
+    img: "/send.png",
     title: "Cross-Chain Send",
     desc: "Send Celo USDC or USDm to anyone, they receive USDC on Ethereum, Base, Arbitrum, and 8 more chains.",
   },
   {
-    icon: "🤖",
-    color: "bg-cowry-green/15 text-cowry-green",
+    img: "/AI.png",
     title: "AI-Powered",
     desc: "An onchain AI agent, registered with Self Agent ID (ERC-8004), parses your intent and executes.",
   },
   {
-    icon: "🛡️",
-    color: "bg-blue-500/15 text-blue-400",
+    img: null,
     title: "Always Confirm",
     desc: "No transaction ever executes without your explicit approval. You stay in control at every step.",
   },
   {
-    icon: "⚡",
-    color: "bg-yellow-500/15 text-yellow-400",
+    img: "/celo.png",
     title: "Built on Celo",
     desc: "Sub-cent fees, instant finality, and native MiniPay support, built for everyday payments and remittances.",
   },
@@ -239,8 +233,12 @@ export default function LandingPage() {
                 key={f.title}
                 className="bg-cowry-card border border-cowry-border rounded-2xl p-6 hover:border-cowry-green/20 transition-colors"
               >
-                <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl text-lg mb-4 ${f.color}`}>
-                  {f.icon}
+                <div className="w-10 h-10 mb-4">
+                  {f.img ? (
+                    <Image src={f.img} alt={f.title} width={40} height={40} className="object-contain" />
+                  ) : (
+                    <span className="text-2xl">🛡️</span>
+                  )}
                 </div>
                 <h3 className="font-bold text-white mb-2 text-sm">{f.title}</h3>
                 <p className="text-cowry-muted text-xs leading-relaxed">{f.desc}</p>
