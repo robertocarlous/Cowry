@@ -26,39 +26,45 @@ const FEATURES = [
     img: "/Abroad.png",
     title: "Send Money Abroad",
     desc: "Send USDC or USDT straight to a bank account or mobile money wallet in Nigeria, Kenya, Ghana, and more.",
+    tint: "rgba(20,184,166,0.08)",
   },
   {
     img: "/Talk.png",
     title: "Talk to Pay",
     desc: `Just type or make a voice record of what you want — "Send $50 to a bank account in Nigeria". No forms, no manual entry, no complexity.`,
+    tint: "rgba(0,212,55,0.08)",
   },
   {
     img: "/send.png",
     title: "Cross-Chain Send",
     desc: "Send Celo USDC or USDm to anyone, they receive USDC on Ethereum, Base, Arbitrum, and 8 more chains.",
+    tint: "rgba(99,102,241,0.08)",
   },
   {
     img: "/AI.png",
     title: "AI-Powered",
     desc: "An onchain AI agent, registered with Self Agent ID (ERC-8004), parses your intent and executes.",
+    tint: "rgba(0,212,55,0.08)",
   },
   {
     img: "/send.png",
     title: "Always Confirm",
     desc: "No transaction ever executes without your explicit approval. You stay in control at every step.",
+    tint: "rgba(99,102,241,0.08)",
   },
   {
     img: "/celo.png",
     title: "Built on Celo",
     desc: "Sub-cent fees, instant finality, and native MiniPay support, built for everyday payments and remittances.",
+    tint: "rgba(245,158,11,0.08)",
   },
 ];
 
 const STEPS = [
-  { n: 1, title: "Open Cowry", desc: "Works on MiniPay. Your wallet connects automatically, no sign-up needed." },
-  { n: 2, title: "Grant Cowry AI access", desc: "One-time approval lets the AI agent execute payments on your behalf." },
+  { n: 1, title: "Open CowryPay", desc: "Works on MiniPay. Your wallet connects automatically, no sign-up needed." },
+  { n: 2, title: "Grant CowryPay AI access", desc: "One-time approval lets the AI agent execute payments on your behalf." },
   { n: 3, title: "Type what you want", desc: `Say "Send $50 to a bank account in Nigeria" or "Bridge 20 USDC to Base".` },
-  { n: 4, title: "Tap Confirm", desc: "Review the preview and tap confirm. Cowry handles the rest." },
+  { n: 4, title: "Tap Confirm", desc: "Review the preview and tap confirm. CowryPay handles the rest." },
 ];
 
 export default function LandingPage() {
@@ -68,8 +74,7 @@ export default function LandingPage() {
       {/* ── Navbar ──────────────────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-cowry-dark/90 backdrop-blur-md border-b border-cowry-border">
         <div className="flex items-center gap-2">
-            <Image src="/Group 2.png" alt="" width={28} height={28} className="object-contain" />
-            <Image src="/CowryPay.png" alt="CowryPay" width={110} height={28} className="object-contain" />
+            <Image src="/Group 3.png" alt="CowryPay" width={120} height={60} className="object-contain" />
           </div>
         <div className="flex items-center gap-3">
           <span className="text-cowry-muted text-lg cursor-pointer hover:text-white transition-colors">⚙</span>
@@ -231,14 +236,11 @@ export default function LandingPage() {
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="bg-cowry-card border border-cowry-border rounded-2xl p-6 hover:border-cowry-green/20 transition-colors"
+                className="border border-cowry-border rounded-2xl p-6 transition-colors"
+                style={{ background: `radial-gradient(ellipse at top left, ${f.tint} 0%, #141414 60%)` }}
               >
                 <div className="w-10 h-10 mb-4">
-                  {f.img ? (
-                    <Image src={f.img} alt={f.title} width={40} height={40} className="object-contain" />
-                  ) : (
-                    <span className="text-2xl">⛓️</span>
-                  )}
+                  <Image src={f.img} alt={f.title} width={40} height={40} className="object-contain" />
                 </div>
                 <h3 className="font-bold text-white mb-2 text-sm">{f.title}</h3>
                 <p className="text-cowry-muted text-xs leading-relaxed">{f.desc}</p>
@@ -258,19 +260,21 @@ export default function LandingPage() {
 
           <div className="flex flex-col lg:flex-row gap-10 items-center">
 
-            {/* Steps card — continuous green timeline line */}
-            <div className="flex-1 relative bg-[#1B1B1B] border border-[#263B25] rounded-xl overflow-hidden">
-
-              {/* Single continuous green line running full height */}
-              <div className="absolute left-[52px] top-0 bottom-0 w-0.5 bg-cowry-green" />
-
-              {STEPS.map((s) => (
-                <div key={s.n} className="flex items-start gap-5 px-6 py-6 relative">
-                  {/* Badge sits on top of the line */}
-                  <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-cowry-green flex items-center justify-center z-10">
-                    <span className="text-black font-black text-xl">{s.n}</span>
+            {/* Steps card */}
+            <div className="flex-1 bg-[#1B1B1B] border border-[#263B25] rounded-xl px-6 py-6 flex flex-col justify-between min-h-[420px]">
+              {STEPS.map((s, i) => (
+                <div key={s.n} className="flex gap-5 items-start">
+                  {/* Left column: badge + connector line between badges */}
+                  <div className="flex flex-col items-center flex-shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-cowry-green flex items-center justify-center flex-shrink-0">
+                      <span className="text-black font-black text-xl">{s.n}</span>
+                    </div>
+                    {i < STEPS.length - 1 && (
+                      <div className="w-px bg-cowry-green flex-1 min-h-[32px] mt-1" />
+                    )}
                   </div>
-                  <div className="pt-1.5">
+                  {/* Text */}
+                  <div className="pt-1">
                     <h3 className="font-bold text-white text-sm mb-1">{s.title}</h3>
                     <p className="text-cowry-muted text-xs leading-relaxed">{s.desc}</p>
                   </div>
@@ -295,7 +299,23 @@ export default function LandingPage() {
 
       {/* ── CTA ─────────────────────────────────────────────────────────── */}
       <section className="px-6 py-20">
-        <div className="max-w-2xl mx-auto bg-cowry-card border border-cowry-border rounded-3xl px-8 py-16 text-center">
+        <div className="relative max-w-5xl mx-auto bg-[#1B1B1B] border border-[#263B25] rounded-xl px-8 py-24 text-center overflow-hidden">
+          {/* Decorative icons */}
+          <Image
+            src="/Group 2.png"
+            alt=""
+            width={160}
+            height={160}
+            className="absolute top-4 right-4 opacity-50"
+          />
+          <Image
+            src="/Group 2.png"
+            alt=""
+            width={160}
+            height={160}
+            className="absolute bottom-4 left-4 opacity-50"
+          />
+
           <h2 className="text-3xl sm:text-5xl font-black mb-4">
             Ready to try CowryPay?
           </h2>
@@ -316,8 +336,7 @@ export default function LandingPage() {
       <footer className="border-t border-cowry-border px-6 py-8">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Image src="/Group 2.png" alt="" width={22} height={22} className="object-contain" />
-            <Image src="/CowryPay.png" alt="CowryPay" width={85} height={22} className="object-contain" />
+            <Image src="/Group 3.png" alt="CowryPay" width={100} height={60} className="object-contain" />
             <span className="text-cowry-muted text-xs">· Talk. Send. Automate.</span>
           </div>
           <p className="text-xs text-cowry-muted">© 2026 CowryPay</p>
