@@ -37,6 +37,11 @@ export function chat(
   return post("/chat", { message, walletAddress, sessionId }, signal);
 }
 
+/** Clear server-side pending state for a chat session (drafts, remittance flow, etc.). */
+export function resetSession(sessionId: string): Promise<{ ok: boolean }> {
+  return post("/session/reset", { sessionId });
+}
+
 // ── Cross-chain send (LI.FI; Celo → other chain USDC) ───────────────────────
 
 export async function getBridgeChains(): Promise<BridgeChainsConfig> {

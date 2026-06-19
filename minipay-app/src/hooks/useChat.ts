@@ -1,14 +1,15 @@
 "use client";
-import { useState, useCallback, useRef } from "react";
-import { chat } from "@/lib/agent";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { chat, resetSession } from "@/lib/agent";
 import { sendTransaction, waitForTransaction } from "@/lib/wallet";
 import type { Message, ChatResponse, EncodedTxJson } from "@/lib/types";
 
-let _sessionId: string | null = null;
-function getSessionId(): string {
-  if (!_sessionId) _sessionId = `session_${Date.now()}`;
-  return _sessionId;
+function newSessionId(): string {
+  return `session_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
 }
+
+/** Clear server pending state after this long without a user message. */
+const IDLE_RESET_MS = 20 * 60 * 1000;
 
 export function useChat(walletAddress: string | null) {
   const [messages,  setMessages]  = useState<Message[]>([]);
@@ -18,8 +19,37 @@ export function useChat(walletAddress: string | null) {
    * Payment transactions are executed by the agent — no user signing required.
    */
   const [txLoading, setTxLoading] = useState(false);
+  const sessionIdRef = useRef(newSessionId());
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const getSessionId = useCallback(() => sessionIdRef.current, []);
+
+  /** Rotate session id and wipe server pending state — no UI changes. */
+  const resetSessionState = useCallback(async () => {
+    const oldSessionId = sessionIdRef.current;
+    sessionIdRef.current = newSessionId();
+    try {
+      await resetSession(oldSessionId);
+    } catch {
+      // Stale Redis state expires within 24h.
+    }
+  }, []);
+
+  const scheduleIdleReset = useCallback(() => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      void resetSessionState();
+    }, IDLE_RESET_MS);
+  }, [resetSessionState]);
+
+  useEffect(() => {
+    scheduleIdleReset();
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [scheduleIdleReset]);
 
   const addMessage = useCallback((msg: Omit<Message, "id" | "timestamp">) => {
     const full: Message = { ...msg, id: crypto.randomUUID(), timestamp: new Date() };
@@ -36,12 +66,13 @@ export function useChat(walletAddress: string | null) {
   const fetchAgentResponse = useCallback(async (text: string, signal?: AbortSignal) => {
     if (!walletAddress) throw new Error("Wallet not connected");
     return chat(text, walletAddress, getSessionId(), signal);
-  }, [walletAddress]);
+  }, [walletAddress, getSessionId]);
 
   const send = useCallback(
     async (text: string) => {
       if (!walletAddress || loading) return;
 
+      scheduleIdleReset();
       addMessage({ role: "user", text });
       setLoading(true);
 
@@ -59,13 +90,17 @@ export function useChat(walletAddress: string | null) {
             text: "✅ Payment sent by Cowry AI agent!",
             response,
           });
+          void resetSessionState();
           return;
         }
 
         appendBotResponse(response);
+
+        if (response.type === "cancelled") {
+          void resetSessionState();
+        }
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") {
-          addMessage({ role: "bot", text: "Stopped." });
           return;
         }
         addMessage({
@@ -77,13 +112,14 @@ export function useChat(walletAddress: string | null) {
         setLoading(false);
       }
     },
-    [walletAddress, loading, addMessage, fetchAgentResponse, appendBotResponse],
+    [walletAddress, loading, addMessage, fetchAgentResponse, appendBotResponse, scheduleIdleReset, resetSessionState],
   );
 
-  /** Abort the in-flight chat request triggered by send(). */
+  /** Abort the in-flight request and silently reset server session state. */
   const stop = useCallback(() => {
     abortControllerRef.current?.abort();
-  }, []);
+    void resetSessionState();
+  }, [resetSessionState]);
 
   /** Called when user taps Confirm on a draft card */
   const confirm = useCallback(async () => {

@@ -207,3 +207,33 @@ export async function setOnRampOrderSettled(orderId: string, amountPaid: string)
 export async function getOnRampOrderSettled(orderId: string): Promise<string | null> {
   return getRedis().get<string>(`cowry:onramp:settled:${orderId}`);
 }
+
+// ── Session management ─────────────────────────────────────────────────────────
+
+/** True when the session has any in-progress agent state (draft, remittance, etc.). */
+export async function hasActiveSessionState(sessionId: string): Promise<boolean> {
+  const s = await getRedis().get<SessionState>(sessionKey(sessionId));
+  if (!s) return false;
+  return !!(
+    s.pendingDraftId ||
+    s.pendingYieldDeposit ||
+    s.pendingGroupMembers?.length ||
+    s.pendingRemittance ||
+    s.pendingRemittanceQuote ||
+    s.pendingOnRamp ||
+    s.pendingOnRampOrder ||
+    s.earnOpportunities?.length
+  );
+}
+
+/**
+ * Wipe all pending chat state for a session so the user can start fresh.
+ * Completed on-chain txs and wallet registration are unaffected.
+ */
+export async function clearSession(sessionId: string): Promise<void> {
+  const s = await getRedis().get<SessionState>(sessionKey(sessionId));
+  if (s?.pendingDraftId) {
+    await clearDraft(s.pendingDraftId);
+  }
+  await getRedis().del(sessionKey(sessionId));
+}
