@@ -6,15 +6,15 @@ const config: Config = {
     extend: {
       colors: {
         cowry: {
-          // Landing page palette — matches logo
-          blue:    "#00D4FF",
+          green:   "#00D437",   // primary brand accent (new design)
+          blue:    "#00D4FF",   // chat bubble accent (keep)
           purple:  "#7B2FBE",
           mint:    "#4AF8E4",
-          dark:    "#0A0F1E",
-          darker:  "#060A14",
-          card:    "#0F1729",
-          border:  "#1A2744",
-          muted:   "#8FA3BF",
+          dark:    "#0B0B0B",   // near-pure black background
+          darker:  "#070707",
+          card:    "#141414",   // dark gray card
+          border:  "#242424",   // subtle gray border
+          muted:   "#888888",   // gray muted text
           // Chat app palette
           primary:   "#35D07F",
           secondary: "#1A3C2E",
@@ -26,6 +26,7 @@ const config: Config = {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
       backgroundImage: {
+        "glow-green":  "radial-gradient(ellipse at 50% 0%, rgba(0,212,55,0.12) 0%, transparent 60%)",
         "glow-blue":   "radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.15) 0%, transparent 60%)",
         "glow-purple": "radial-gradient(ellipse at 80% 50%, rgba(123,47,190,0.12) 0%, transparent 50%)",
       },
