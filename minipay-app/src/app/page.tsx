@@ -91,13 +91,7 @@ export default function LandingPage() {
       <section className="relative pt-36 pb-16 px-6 text-center overflow-hidden">
         <div className="absolute inset-0 bg-glow-green pointer-events-none" />
 
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 bg-cowry-card border border-cowry-border rounded-full px-4 py-1.5 mb-8">
-          <span className="w-2 h-2 rounded-full bg-cowry-green inline-block" />
-          <span className="text-xs font-medium text-white tracking-wide">Talk. Send. Automate.</span>
-        </div>
-
-        <h1 className="text-4xl sm:text-6xl font-black leading-tight mb-5 max-w-3xl mx-auto">
+        <h1 className="text-4xl sm:text-6xl font-black leading-tight mb-5 max-w-3xl mx-auto mt-8">
           Send money as easily as{" "}
           <span className="text-cowry-green">sending a message</span>
         </h1>

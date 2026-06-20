@@ -7,13 +7,6 @@ import {
   switchToCelo,
   shortAddress,
 } from "@/lib/wallet";
-import {
-  getCachedUsername,
-  clearCachedUsername,
-  getUsernameFromChain,
-  isWalletRegistered,
-  setCachedUsername,
-} from "@/lib/registry";
 import { readErc20Allowance } from "@/lib/erc20";
 
 // CowryPay v2 — spender we check allowance against
@@ -28,7 +21,6 @@ type AccessState = "unknown" | "checking" | "not_granted" | "granted";
 
 export function useWallet() {
   const [address,      setAddress]      = useState<`0x${string}` | null>(null);
-  const [username,     setUsername]     = useState<string | null>(null);
   const [accessState,  setAccessState]  = useState<AccessState>("unknown");
   const [inMiniPay,    setInMiniPay]    = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
@@ -52,37 +44,6 @@ export function useWallet() {
       setAccessState("not_granted");
     }
   }, []);
-
-  /** Fetch @name from chain in background (slow); never blocks the chat gate. */
-  const fetchUsernameInBackground = useCallback((addr: `0x${string}`) => {
-    void getUsernameFromChain(addr).then((name) => {
-      if (name) {
-        setCachedUsername(addr, name);
-        setUsername(name);
-      }
-    });
-  }, []);
-
-  /** Background lookup of @name for the header display — never blocks the UI. */
-  const checkRegistration = useCallback(async (addr: `0x${string}`) => {
-    const cached = getCachedUsername(addr);
-    if (cached) setUsername(cached);
-
-    try {
-      const registered = await isWalletRegistered(addr);
-      if (!registered) {
-        // Clear any stale localStorage cache from a previous contract deployment
-        clearCachedUsername(addr);
-        setUsername(null);
-        return;
-      }
-      if (!cached) {
-        fetchUsernameInBackground(addr);
-      }
-    } catch {
-      // Best-effort — username is purely cosmetic in the header
-    }
-  }, [fetchUsernameInBackground]);
 
   const ensureCelo = useCallback(async () => {
     try {
@@ -120,10 +81,8 @@ export function useWallet() {
         }
 
         setAddress(addr);
-        // Unblock UI — access check drives the gate, registration is just for the header
         setIsConnecting(false);
         void checkAccess(addr);
-        void checkRegistration(addr);
       } catch (e) {
         setWalletError(e instanceof Error ? e.message : String(e));
         setIsConnecting(false);
@@ -149,9 +108,7 @@ export function useWallet() {
       setAddress(next);
       if (next) {
         void checkAccess(next);
-        void checkRegistration(next);
       } else {
-        setUsername(null);
         setAccessState("unknown");
       }
     };
@@ -163,7 +120,7 @@ export function useWallet() {
       provider?.removeListener?.("chainChanged",    handleChainChange);
       provider?.removeListener?.("accountsChanged", handleAccountsChange);
     };
-  }, [checkAccess, checkRegistration]);
+  }, [checkAccess]);
 
   const onAccessGranted = useCallback(() => {
     setAccessState("granted");
@@ -171,7 +128,6 @@ export function useWallet() {
 
   return {
     address,
-    username,
     shortAddress:    address ? shortAddress(address) : null,
     inMiniPay,
     isConnecting,

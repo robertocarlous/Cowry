@@ -24,21 +24,14 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} gap-2`}>
 
-      {/* Bot avatar */}
-      {!isUser && (
-        <div className="w-6 h-6 rounded-full bg-cowry-card border border-cowry-border flex-shrink-0 mt-1 flex items-center justify-center text-[10px]">
-          🐚
-        </div>
-      )}
-
       <div className={`max-w-[82%] flex flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
 
         {/* Bubble */}
         <div
-          className={`px-3.5 py-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
+          className={`px-4 py-3 rounded-[22px] text-sm whitespace-pre-wrap leading-relaxed ${
             isUser
-              ? "bg-cowry-blue text-cowry-darker font-medium rounded-br-sm"
-              : "bg-cowry-card border border-cowry-border text-white rounded-bl-sm"
+              ? "bg-cowry-green text-white font-medium"
+              : "bg-[#141C16] border border-cowry-green/10 text-white"
           }`}
         >
           {message.text}
@@ -131,7 +124,7 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
           />
         )}
 
-        <span className="text-[10px] text-cowry-border px-1">
+        <span className="text-[11px] text-cowry-muted px-1">
           {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </span>
       </div>
