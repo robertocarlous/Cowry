@@ -8,6 +8,11 @@ export const TOKENS = {
         address: "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
         symbol: "USDC",
         decimals: 6
+    },
+    USDT: {
+        address: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+        symbol: "USDT",
+        decimals: 6
     }
 };
 export const DEFAULT_TOKEN = TOKENS.USDC;
@@ -19,6 +24,7 @@ export function getTokenBySymbol(sym) {
     const upper = sym.toUpperCase();
     if (upper === "USDM" || upper === "MENTO" || upper === "CELO_DOLLAR") return TOKENS.USDm;
     if (upper === "USDC") return TOKENS.USDC;
+    if (upper === "USDT" || upper === "TETHER") return TOKENS.USDT;
     return DEFAULT_TOKEN;
 }
 export function toBaseUnits(amount, decimals) {

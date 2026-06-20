@@ -1,6 +1,7 @@
 import { CELO_USDM_ADDRESS, CELO_USDC_ADDRESS } from "./celoTokens.js";
 const LIFI_BASE = "https://li.quest/v1";
 const INTEGRATOR = process.env.LIFI_INTEGRATOR?.trim() || "cowry";
+const BRIDGE_FEE = "0.003";
 export const CELO_CHAIN_ID = 42220;
 export const SUPPORTED_CHAINS = {
     1: {
@@ -139,7 +140,8 @@ export async function getBridgeQuote(params) {
         fromAmount: params.fromAmount,
         fromAddress: params.fromAddress,
         toAddress: params.toAddress,
-        integrator: INTEGRATOR
+        integrator: INTEGRATOR,
+        fee: BRIDGE_FEE
     });
 }
 export async function getBridgeStatus(txHash, fromChainId, toChainId) {

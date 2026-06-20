@@ -1,8 +1,9 @@
-import { cowrypayContract } from "../abi/index.js";
-import { encodeCreateGroup } from "../chain/encodeGroupRegistry.js";
+import { cowrypayContract, groupRegistryContract } from "../abi/index.js";
+import { encodeCreateGroup, encodeAddMember } from "../chain/encodeGroupRegistry.js";
 import { encodedCallToJson } from "../chain/encodeCowryPay.js";
 import { makePublicClient } from "../chain/client.js";
 import { encodeRegisterUsername } from "../chain/encodeUserRegistry.js";
+import { tryGetAgentWallet, agentSendTx } from "../agent/wallet.js";
 import { formatGroupsLinesForWallet, isWalletRegisteredOnChain, resolveGroupByNameOnChain, resolveUsernameOnChain } from "../chain/reads.js";
 import { normalizeUsernameForRegistry } from "../chain/normalizeUsername.js";
 export function createChainResolutionDeps(rpcUrl) {
@@ -35,7 +36,7 @@ export function createChainResolutionDeps(rpcUrl) {
                 chainId,
                 cowryPay: cowrypayContract.address
             }),
-        adminCreateGroup: async (displayName, memberHandles)=>{
+        adminCreateGroup: async (displayName, memberHandles, _payerWallet)=>{
             const trimmed = displayName.trim();
             if (!trimmed) {
                 return {
@@ -43,7 +44,7 @@ export function createChainResolutionDeps(rpcUrl) {
                     reason: "Group name cannot be empty."
                 };
             }
-            const resolved = [];
+            const resolvedMembers = [];
             for (const h of memberHandles){
                 const r = await resolveUsernameOnChain(client, h);
                 if (!r.ok) {
@@ -52,17 +53,59 @@ export function createChainResolutionDeps(rpcUrl) {
                         reason: `Cannot resolve @${r.username}: ${r.reason ?? "unknown"}`
                     };
                 }
-                resolved.push(`${r.username} → ${r.address}`);
+                resolvedMembers.push({
+                    username: r.username,
+                    address: r.address
+                });
+            }
+            const agentWallet = tryGetAgentWallet();
+            if (agentWallet) {
+                try {
+                    const createTx = encodeCreateGroup(trimmed);
+                    const createHash = await agentSendTx(createTx.to, createTx.data, 0n);
+                    const receipt = await client.waitForTransactionReceipt({
+                        hash: createHash
+                    });
+                    let groupId = null;
+                    const registryAddr = groupRegistryContract.address.toLowerCase();
+                    for (const log of receipt.logs){
+                        if (log.address.toLowerCase() === registryAddr && log.topics[1]) {
+                            groupId = BigInt(log.topics[1]);
+                            break;
+                        }
+                    }
+                    if (groupId === null) {
+                        return {
+                            ok: false,
+                            reason: "Group was created but could not determine its ID from the receipt."
+                        };
+                    }
+                    for (const member of resolvedMembers){
+                        const addTx = encodeAddMember(groupId, member.address);
+                        await agentSendTx(addTx.to, addTx.data, 0n);
+                    }
+                    const memberList = resolvedMembers.map((m)=>`@${m.username}`).join(", ");
+                    const memberText = resolvedMembers.length > 0 ? ` with ${memberList}` : "";
+                    return {
+                        ok: true,
+                        message: `✅ Group **${trimmed}** created on-chain (ID: **${groupId}**)${memberText}.\n\n` + `[View on CeloScan](https://celoscan.io/tx/${createHash})`
+                    };
+                } catch (err) {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    return {
+                        ok: false,
+                        reason: `Agent could not create group: ${msg}`
+                    };
+                }
             }
             const tx = encodeCreateGroup(trimmed);
-            const transactions = [
-                encodedCallToJson(tx)
-            ];
-            const memberNote = resolved.length > 0 ? ` After the tx confirms, add members with GroupRegistry.addMember(groupId, address): ${resolved.join("; ")}.` : " After the tx confirms, add payees with GroupRegistry.addMember(groupId, address). Owner is not auto-added as a member.";
+            const memberNote = resolvedMembers.length > 0 ? ` Resolved members (add manually after tx confirms): ${resolvedMembers.map((m)=>`@${m.username} → ${m.address}`).join("; ")}.` : "";
             return {
                 ok: true,
-                message: `Sign **createGroup** below. Note: the owner is not automatically a group member.${memberNote}`,
-                transactions
+                message: `Sign **createGroup("${trimmed}")** below. Members must be added separately.${memberNote}`,
+                transactions: [
+                    encodedCallToJson(tx)
+                ]
             };
         },
         async adminRegisterUsername (rawName, wallet) {

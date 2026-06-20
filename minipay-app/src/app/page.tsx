@@ -3,7 +3,6 @@ import Link from "next/link";
 
 const CURRENCIES = [
   { flag: "/Nigeria.png",  code: "NGN" },
-  { flag: "/Ghana.png",    code: "GHS" },
   { flag: "/Kenya.png",    code: "KES" },
   { flag: "/Uganda.png",   code: "UGX" },
   { flag: "/Tazania.png",  code: "TZS" },
@@ -25,7 +24,7 @@ const FEATURES = [
   {
     img: "/Abroad.png",
     title: "Send Money Abroad",
-    desc: "Send USDC or USDT straight to a bank account or mobile money wallet in Nigeria, Kenya, Ghana, and more.",
+    desc: "Send USDC or USDT straight to a bank account or mobile money wallet in Nigeria, Kenya, and more.",
     tint: "rgba(20,184,166,0.08)",
   },
   {

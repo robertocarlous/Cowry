@@ -1,12 +1,15 @@
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
 import { parsedIntentSchema, type ParsedIntent } from "./schemas.js";
+import type { Institution } from "./remittance/paycrestClient.js";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 
 const SYSTEM = `You are Cowry's intent parser. Output ONLY valid JSON matching this shape:
 - Buy / purchase / top up USDC with fiat currency (on-ramp) — user wants to deposit local fiat and receive USDC in their wallet. Use whenever the message mentions: "buy", "purchase", "top up", "add funds", "on-ramp", combined with a fiat currency or country name:
   {"kind":"onramp","action":"BUY_CRYPTO","fiatAmount":number,"countryHint":"string (e.g. 'Nigeria', 'NGN')","institutionHint":"string (bank name if mentioned)","accountIdentifier":"string (account number if given)"}
-- Send money to someone's bank account / mobile money / cross-border / remittance / abroad — recipient does NOT need a Cowry account or username. ALWAYS use this whenever the message mentions any of: "bank account", "bank", "mobile money", "MoMo", "account number", "phone number", a country name (e.g. Nigeria, Kenya, Ghana, Uganda, Tanzania, Malawi), or a saved nickname like "mom"/"my landlord". Do NOT set recipientNickname to an @username or Cowry handle — if the message ONLY contains an @username/handle with none of the cues above, use CHAT instead:
+- Send money to someone's bank account / mobile money / cross-border / remittance / abroad — recipient does NOT need a Cowry account or username. ALWAYS use this whenever the message mentions any of: "bank account", "bank", "mobile money", "MoMo", "account number", "phone number", a country name (e.g. Nigeria, Kenya, Uganda, Tanzania, Malawi), or a saved nickname like "mom"/"my landlord". Do NOT set recipientNickname to an @username or Cowry handle — if the message ONLY contains an @username/handle with none of the cues above, use CHAT instead:
   {"kind":"remittance","action":"SEND_REMITTANCE","amount":number,"recipientNickname":"string (if user references a saved name like 'mom', 'my landlord' — NOT an @username)","countryHint":"string (country if mentioned, e.g. 'Nigeria')","institutionHint":"string (bank or mobile money name if mentioned, e.g. 'GTBank', 'MTN MoMo')","accountIdentifier":"string (account/phone number if given)","token":"USDC or USDT — only if the user explicitly names one, otherwise omit"}
 - Approve token for CowryPay: {"kind":"admin","action":"APPROVE_USDC","amount":number,"token":"USDm, USDC, or USDT"}
 - Help / what can you do: {"kind":"admin","action":"HELP"}
@@ -17,7 +20,7 @@ const SYSTEM = `You are Cowry's intent parser. Output ONLY valid JSON matching t
 Examples:
 - "Buy 10000 NGN worth of USDC" → {"kind":"onramp","action":"BUY_CRYPTO","fiatAmount":10000,"countryHint":"NGN"}
 - "I want to top up with Naira" → {"kind":"onramp","action":"BUY_CRYPTO","countryHint":"Nigeria"}
-- "Send $50 to a bank account in Ghana" → {"kind":"remittance","action":"SEND_REMITTANCE","amount":50,"countryHint":"Ghana"}
+- "Send $50 to a bank account in Tanzania" → {"kind":"remittance","action":"SEND_REMITTANCE","amount":50,"countryHint":"Tanzania"}
 - "Send $20 to mobile money in Kenya, 0712345678" → {"kind":"remittance","action":"SEND_REMITTANCE","amount":20,"countryHint":"Kenya","accountIdentifier":"0712345678"}
 - "Send 20 USDC to @ada" → {"kind":"admin","action":"CHAT"}  (an @username alone is not a remittance recipient)
 - "Send 50 USDT to a bank account in Nigeria" → {"kind":"remittance","action":"SEND_REMITTANCE","amount":50,"countryHint":"Nigeria","token":"USDT"}
@@ -28,7 +31,7 @@ const CHAT_SYSTEM = `You are Cowry, an AI-powered crypto payment assistant built
 You help users send money abroad and bridge crypto using natural language.
 
 Cowry capabilities:
-• Buy USDC with local currency (on-ramp) — deposit Naira, Cedis, Shillings directly to your wallet: "Buy 10000 NGN worth of USDC"
+• Buy USDC with local currency (on-ramp) — deposit Naira or Shillings directly to your wallet: "Buy 10000 NGN worth of USDC"
 • Send to a bank account or mobile money abroad — recipient doesn't need Cowry (remittance): "Send $50 to a bank account in Nigeria"
 • Cross-chain: send USDC or USDm from Celo to USDC on Ethereum, Base, Arbitrum and more
 • Check balance and view transactions
@@ -37,11 +40,22 @@ When asked about balance or transactions: let the user know you can check their 
 
 Keep responses SHORT (2-3 sentences max), friendly, and helpful, written as plain conversational text. Do not use markdown formatting of any kind — no headers (#), no bold (**text**), no bullet points or numbered lists. Mention specific Cowry commands in plain words when relevant. Never make up transaction data.`;
 
-/** Groq exposes an OpenAI-compatible Chat Completions API. */
+/** Groq exposes an OpenAI-compatible Chat Completions API. Fast + cheap — our default for everything. */
 export function createGroqClient(): OpenAI | null {
   const key = process.env.GROQ_API_KEY?.trim();
   if (!key) return null;
   return new OpenAI({ apiKey: key, baseURL: GROQ_BASE_URL });
+}
+
+/**
+ * Claude — slower and pricier than Groq, so it's only ever used as a fallback
+ * for the handful of calls where Groq comes back empty (no confident match,
+ * or unavailable), not as the default path.
+ */
+function createAnthropicClient(): Anthropic | null {
+  const key = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!key) return null;
+  return new Anthropic({ apiKey: key });
 }
 
 /** Parse a user message into a structured intent. */
@@ -74,32 +88,161 @@ export async function parseWithLlm(
   return parsed.data;
 }
 
-/** Generate a conversational reply for general chat / unknown intents. */
+const institutionResolutionSchema = z.object({ index: z.number().int().nullable() });
+
+function institutionResolutionPrompt(institutions: Institution[]): string {
+  const list = institutions.map((inst, i) => `${i}. ${inst.name}`).join("\n");
+  return `You match a user's free-text bank or mobile-money provider name against a fixed numbered list. The user may use abbreviations, slang, or typos (e.g. "momo" or "MTN" for "MTN Mobile Money", "GTB" for "GTBank"). Pick the SINGLE best-matching index. If nothing is a confident match, or the text could plausibly mean more than one entry, return null — do not guess. Respond with ONLY JSON: {"index": <number or null>}.
+
+List:
+${list}`;
+}
+
+function parseIndexResponse(raw: string | null | undefined, institutions: Institution[]): Institution | null {
+  if (!raw) return null;
+  let data: unknown;
+  try { data = JSON.parse(raw); } catch {
+    // Claude sometimes wraps JSON in a markdown code fence despite instructions.
+    const match = raw.match(/\{[^}]*\}/);
+    if (!match) return null;
+    try { data = JSON.parse(match[0]); } catch { return null; }
+  }
+  const parsed = institutionResolutionSchema.safeParse(data);
+  if (!parsed.success || parsed.data.index == null) return null;
+  return institutions[parsed.data.index] ?? null;
+}
+
+async function resolveInstitutionWithGroq(
+  query: string,
+  institutions: Institution[],
+  signal?: AbortSignal,
+): Promise<Institution | null> {
+  const client = createGroqClient();
+  if (!client) return null;
+  const model = process.env.GROQ_CHAT_MODEL?.trim() || "llama-3.3-70b-versatile";
+  try {
+    const completion = await client.chat.completions.create(
+      {
+        model,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: institutionResolutionPrompt(institutions) },
+          { role: "user",   content: query },
+        ],
+        temperature: 0,
+      },
+      { signal },
+    );
+    return parseIndexResponse(completion.choices[0]?.message?.content, institutions);
+  } catch {
+    return null;
+  }
+}
+
+async function resolveInstitutionWithClaude(
+  query: string,
+  institutions: Institution[],
+  signal?: AbortSignal,
+): Promise<Institution | null> {
+  const client = createAnthropicClient();
+  if (!client) return null;
+  const model = process.env.ANTHROPIC_CHAT_MODEL?.trim() || "claude-haiku-4-5-20251001";
+  try {
+    const msg = await client.messages.create(
+      {
+        model,
+        max_tokens: 50,
+        system: institutionResolutionPrompt(institutions),
+        messages: [{ role: "user", content: query }],
+      },
+      { signal },
+    );
+    const block = msg.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+    return parseIndexResponse(block?.text, institutions);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve a free-text bank / mobile-money name (e.g. "momo", "MTN", a typo)
+ * against the live institution list for a currency, using an LLM instead of
+ * a hand-maintained alias table. The model only ever returns an INDEX into
+ * the list we hand it, never a name or code — so it cannot hallucinate an
+ * institution that doesn't actually exist; we map the index back ourselves.
+ *
+ * Tries Groq first (fast, cheap). Only escalates to Claude — slower and
+ * pricier — when Groq comes back with no confident match, since that's the
+ * genuinely-hard / "rubbish input" case where the stronger model earns its cost.
+ */
+export async function resolveInstitutionWithLlm(
+  query: string,
+  institutions: Institution[],
+  signal?: AbortSignal,
+): Promise<Institution | null> {
+  if (institutions.length === 0) return null;
+
+  const groqMatch = await resolveInstitutionWithGroq(query, institutions, signal);
+  if (groqMatch) return groqMatch;
+
+  return resolveInstitutionWithClaude(query, institutions, signal);
+}
+
+/**
+ * Generate a conversational reply for general chat / unknown intents.
+ * Groq first (fast, cheap); Claude only as a fallback if Groq is unavailable
+ * or errors, so the pricier model isn't on the default path.
+ */
 export async function generateChatReply(
-  client: OpenAI,
   userMessage: string,
   context?: { username?: string | null; walletAddress?: string },
   signal?: AbortSignal,
 ): Promise<string> {
-  const model = process.env.GROQ_CHAT_MODEL?.trim() || "llama-3.3-70b-versatile";
-
   const contextNote = context?.username
     ? `\nThe user's Cowry username is @${context.username}.`
     : context?.walletAddress
     ? `\nThe user's wallet: ${context.walletAddress.slice(0, 10)}…`
     : "";
+  const system = CHAT_SYSTEM + contextNote;
 
-  const completion = await client.chat.completions.create(
-    {
-      model,
-      messages: [
-        { role: "system", content: CHAT_SYSTEM + contextNote },
-        { role: "user",   content: userMessage },
-      ],
-      temperature: 0.7,
-      max_tokens: 200,
-    },
-    { signal },
-  );
-  return completion.choices[0]?.message?.content?.trim() ?? "How can I help you today?";
+  const groq = createGroqClient();
+  if (groq) {
+    try {
+      const model = process.env.GROQ_CHAT_MODEL?.trim() || "llama-3.3-70b-versatile";
+      const completion = await groq.chat.completions.create(
+        {
+          model,
+          messages: [
+            { role: "system", content: system },
+            { role: "user",   content: userMessage },
+          ],
+          temperature: 0.7,
+          max_tokens: 200,
+        },
+        { signal },
+      );
+      const reply = completion.choices[0]?.message?.content?.trim();
+      if (reply) return reply;
+    } catch {
+      // fall through to Claude
+    }
+  }
+
+  const anthropic = createAnthropicClient();
+  if (anthropic) {
+    const model = process.env.ANTHROPIC_CHAT_MODEL?.trim() || "claude-haiku-4-5-20251001";
+    const msg = await anthropic.messages.create(
+      {
+        model,
+        max_tokens: 200,
+        system,
+        messages: [{ role: "user", content: userMessage }],
+      },
+      { signal },
+    );
+    const block = msg.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+    if (block?.text?.trim()) return block.text.trim();
+  }
+
+  return "How can I help you today?";
 }

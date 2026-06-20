@@ -15,6 +15,7 @@ export const adminActionSchema = z.enum([
     "LIST_GROUPS",
     "HELP",
     "BALANCE",
+    "TX_HISTORY",
     "CHAT"
 ]);
 export const earnActionSchema = z.enum([
@@ -54,7 +55,26 @@ export const parsedIntentSchema = z.discriminatedUnion("kind", [
         amount: z.number().positive().optional(),
         vaultIndex: z.number().int().positive().optional(),
         minApy: z.number().optional(),
-        chainName: z.string().optional()
+        chainName: z.string().optional(),
+        token: z.string().optional()
+    }),
+    z.object({
+        kind: z.literal("remittance"),
+        action: z.literal("SEND_REMITTANCE"),
+        amount: z.number().positive().optional(),
+        recipientNickname: z.string().optional(),
+        countryHint: z.string().optional(),
+        institutionHint: z.string().optional(),
+        accountIdentifier: z.string().optional(),
+        token: z.string().optional()
+    }),
+    z.object({
+        kind: z.literal("onramp"),
+        action: z.literal("BUY_CRYPTO"),
+        fiatAmount: z.number().positive().optional(),
+        countryHint: z.string().optional(),
+        institutionHint: z.string().optional(),
+        accountIdentifier: z.string().optional()
     }),
     z.object({
         kind: z.literal("unknown"),
