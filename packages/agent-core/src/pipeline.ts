@@ -72,7 +72,7 @@ import {
   createOnRampOrder,
   type Institution,
 } from "./remittance/paycrestClient.js";
-import { findInstitutionMatches, isGenericInstitutionQuery } from "./remittance/institutionMatch.js";
+import { findInstitutionMatches, isGenericInstitutionQuery, describeInstitutionPrompt } from "./remittance/institutionMatch.js";
 import { findRecipientByNickname, decryptAccountIdentifier } from "./remittance/recipients.js";
 import type { PendingOnRamp, PendingRemittance, PendingRemittanceQuote } from "./remittance/types.js";
 
@@ -1356,17 +1356,10 @@ async function continueRemittanceSlotFilling(
         // treating it as a failed lookup against the full institution list.
         unconsumed = undefined;
       }
-      if (unconsumed) {
-        pending.institutionQuery = unconsumed;
-        unconsumed = undefined;
-      } else if (!pending.institutionQuery) {
-        await setPendingRemittance(sessionId, pending);
-        return {
-          type: "clarify",
-          question: "What's the bank or mobile money provider? (e.g. GTBank, Access Bank, MTN MoMo)",
-        };
-      }
 
+      // Fetched up front so the clarify question below can be worded for
+      // whatever institution types this corridor actually supports (e.g.
+      // Nigeria is bank-only, Uganda is mobile-money-only).
       let institutions: Institution[];
       try {
         institutions = await getInstitutions(pending.currencyCode, signal);
@@ -1377,6 +1370,17 @@ async function continueRemittanceSlotFilling(
           question: `Could not look up banks/providers right now (${
             e instanceof Error ? e.message : String(e)
           }). Please try again.`,
+        };
+      }
+
+      if (unconsumed) {
+        pending.institutionQuery = unconsumed;
+        unconsumed = undefined;
+      } else if (!pending.institutionQuery) {
+        await setPendingRemittance(sessionId, pending);
+        return {
+          type: "clarify",
+          question: describeInstitutionPrompt(institutions),
         };
       }
 

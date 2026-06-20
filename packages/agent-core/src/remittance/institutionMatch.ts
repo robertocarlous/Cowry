@@ -54,6 +54,21 @@ export function isGenericInstitutionQuery(query: string): boolean {
   return words.every((w) => GENERIC_INSTITUTION_WORDS.has(w));
 }
 
+/**
+ * Builds the "what's the provider?" question, worded for whatever institution
+ * types a corridor actually has (e.g. Nigeria is bank-only, Uganda is mobile-money-only,
+ * Kenya has both) instead of always asking about both.
+ */
+export function describeInstitutionPrompt(institutions: Institution[]): string {
+  const types = new Set(institutions.map((i) => i.type));
+  const hasBank = types.has("bank");
+  const hasMomo = types.has("mobile_money");
+  const label =
+    hasBank && hasMomo ? "bank or mobile money provider" : hasMomo ? "mobile money provider" : "bank";
+  const examples = institutions.slice(0, 3).map((i) => i.name).join(", ");
+  return `What's the ${label}?${examples ? ` (e.g. ${examples})` : ""}`;
+}
+
 function rawNormalize(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
