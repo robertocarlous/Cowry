@@ -16,6 +16,8 @@
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"],
+      "@anthropic-ai/sdk":   ["./node_modules/@anthropic-ai/sdk"],
+      "@anthropic-ai/sdk/*": ["./node_modules/@anthropic-ai/sdk/*"],
       "viem":    ["./node_modules/viem"],
       "viem/*":  ["./node_modules/viem/*"],
       "openai":  ["./node_modules/openai"],
