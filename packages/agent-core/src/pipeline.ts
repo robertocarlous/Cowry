@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DraftRecord, DraftTxPlan, ParsedIntent } from "./schemas.js";
-import { createGroqClient, generateChatReply } from "./llm.js";
+import { generateChatReply, resolveInstitutionWithLlm } from "./llm.js";
 import { encodeErc20Approve } from "./chain/encodeErc20.js";
 import {
   encodeAddMember,
@@ -909,14 +909,11 @@ export async function adminFromIntent(
 
   if (intent.action === "CHAT") {
     // General conversational message — use LLM to reply naturally
-    const llm = createGroqClient();
-    if (llm) {
-      try {
-        const reply = await generateChatReply(llm, rawText ?? "Hello", undefined, signal);
-        return { kind: "info", message: reply };
-      } catch {
-        // fall through to default
-      }
+    try {
+      const reply = await generateChatReply(rawText ?? "Hello", undefined, signal);
+      return { kind: "info", message: reply };
+    } catch {
+      // fall through to default
     }
     return {
       kind: "info",
@@ -1348,7 +1345,11 @@ async function continueRemittanceSlotFilling(
       }
 
       const attempted = pending.institutionQuery;
-      const matches = findInstitutionMatches(attempted, institutions);
+      let matches = findInstitutionMatches(attempted, institutions);
+      if (matches.length === 0) {
+        const llmMatch = await resolveInstitutionWithLlm(attempted, institutions, signal);
+        if (llmMatch) matches = [llmMatch];
+      }
       if (matches.length === 1) {
         pending.institutionCode = matches[0]!.code;
         pending.institutionName = matches[0]!.name;
@@ -1576,7 +1577,11 @@ async function continueOnRampSlotFilling(
         };
       }
 
-      const matches = findInstitutionMatches(pending.institutionQuery!, institutions);
+      let matches = findInstitutionMatches(pending.institutionQuery!, institutions);
+      if (matches.length === 0) {
+        const llmMatch = await resolveInstitutionWithLlm(pending.institutionQuery!, institutions, signal);
+        if (llmMatch) matches = [llmMatch];
+      }
       if (matches.length === 1) {
         pending.institutionCode = matches[0]!.code;
         pending.institutionName = matches[0]!.name;
@@ -1663,11 +1668,18 @@ export async function onrampFromIntent(
     accountIdentifier: existing?.accountIdentifier,
   };
 
-  if (intent.countryHint && !pending.fiatCurrency) {
+  if (intent.countryHint) {
     const country = resolveCountry(intent.countryHint);
-    if (country) {
+    if (country && country.countryCode !== pending.countryCode) {
+      // User named a (different) country — switch to it and drop any
+      // institution/account info tied to whichever country was pending before,
+      // since institution codes and choices don't carry over across countries.
       pending.countryCode = country.countryCode;
       pending.fiatCurrency = country.currencyCode;
+      pending.institutionQuery = undefined;
+      pending.institutionCode = undefined;
+      pending.institutionName = undefined;
+      pending.accountIdentifier = undefined;
     }
   }
   if (intent.institutionHint && !pending.institutionCode && !pending.institutionQuery) {
@@ -1755,11 +1767,18 @@ export async function remittanceFromIntent(
     accountIdentifier: existing?.accountIdentifier,
   };
 
-  if (intent.countryHint && !pending.currencyCode) {
+  if (intent.countryHint) {
     const country = resolveCountry(intent.countryHint);
-    if (country) {
+    if (country && country.countryCode !== pending.countryCode) {
+      // User named a (different) country — switch to it and drop any
+      // institution/account info tied to whichever country was pending before,
+      // since institution codes and choices don't carry over across countries.
       pending.countryCode = country.countryCode;
       pending.currencyCode = country.currencyCode;
+      pending.institutionQuery = undefined;
+      pending.institutionCode = undefined;
+      pending.institutionName = undefined;
+      pending.accountIdentifier = undefined;
     }
   }
   if (intent.institutionHint && !pending.institutionCode && !pending.institutionQuery) {
@@ -2139,13 +2158,10 @@ export async function handleUserMessage(
 
   if (intent.kind === "unknown") {
     // Try conversational LLM reply before showing the fallback error
-    const llm = createGroqClient();
-    if (llm) {
-      try {
-        const reply = await generateChatReply(llm, t, undefined, signal);
-        return { type: "info", message: reply };
-      } catch { /* fall through */ }
-    }
+    try {
+      const reply = await generateChatReply(t, undefined, signal);
+      return { type: "info", message: reply };
+    } catch { /* fall through */ }
     return {
       type: "clarify",
       question:

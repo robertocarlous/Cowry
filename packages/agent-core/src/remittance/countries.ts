@@ -12,9 +12,6 @@ const COUNTRIES: Record<string, CountryInfo> = {
   kenya:   { countryCode: "KE", currencyCode: "KES", name: "Kenya" },
   ke:      { countryCode: "KE", currencyCode: "KES", name: "Kenya" },
   shilling:{ countryCode: "KE", currencyCode: "KES", name: "Kenya" },
-  ghana:   { countryCode: "GH", currencyCode: "GHS", name: "Ghana" },
-  gh:      { countryCode: "GH", currencyCode: "GHS", name: "Ghana" },
-  cedi:    { countryCode: "GH", currencyCode: "GHS", name: "Ghana" },
   uganda:  { countryCode: "UG", currencyCode: "UGX", name: "Uganda" },
   ug:      { countryCode: "UG", currencyCode: "UGX", name: "Uganda" },
   tanzania:{ countryCode: "TZ", currencyCode: "TZS", name: "Tanzania" },
@@ -24,12 +21,11 @@ const COUNTRIES: Record<string, CountryInfo> = {
 };
 
 /** All supported countries, for prompting the user. */
-export const SUPPORTED_COUNTRIES = ["Nigeria", "Kenya", "Ghana", "Uganda", "Tanzania", "Malawi"];
+export const SUPPORTED_COUNTRIES = ["Nigeria", "Kenya", "Uganda", "Tanzania", "Malawi"];
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   NGN: "₦",
   KES: "KSh",
-  GHS: "GH₵",
   UGX: "USh",
   TZS: "TSh",
   MWK: "MK",

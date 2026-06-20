@@ -13,6 +13,36 @@ const SUBSTRING_FILLER = ["microfinance", "financial", "finance", "nigeria", "li
 // Whole-word stopwords ignored when building an institution's acronym.
 const ACRONYM_STOPWORDS = new Set(["of", "for", "the", "and", "plc", "limited", "ltd", "nigeria", "nig", "microfinance", "mfb"]);
 
+// Colloquial mobile-money brand names users actually type ("momo", "MTN") that
+// don't appear as clean substrings or acronyms of the institution's full name
+// (e.g. "MTN Mobile Money Uganda"). Each alias maps to the set of keywords that
+// must ALL appear in the institution's raw (filler-preserving) name.
+const ALIASES: Record<string, string[]> = {
+  momo:         ["mobile", "money"],
+  mobilemoney:  ["mobile", "money"],
+  mtn:          ["mtn"],
+  mtnmomo:      ["mtn"],
+  mtnmobilemoney: ["mtn"],
+  vodafone:     ["vodafone"],
+  voda:         ["vodafone"],
+  vodacash:     ["vodafone"],
+  telecel:      ["telecel"],
+  telecelcash:  ["telecel"],
+  airteltigo:   ["airtel", "tigo"],
+  airtel:       ["airtel"],
+  tigo:         ["tigo"],
+  mpesa:        ["mpesa"],
+  "m-pesa":     ["mpesa"],
+  orange:       ["orange"],
+  orangemoney:  ["orange"],
+  moov:         ["moov"],
+  moovmoney:    ["moov"],
+};
+
+function rawNormalize(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 function normalizeForSubstring(name: string): string {
   let out = name.toLowerCase().replace(/[^a-z0-9]/g, "");
   for (const w of [...SUBSTRING_FILLER].sort((a, b) => b.length - a.length)) {
@@ -52,6 +82,16 @@ function levenshtein(a: string, b: string): number {
  * caller should fall back to showing the full institution list.
  */
 export function findInstitutionMatches(query: string, institutions: Institution[]): Institution[] {
+  const aliasKey = rawNormalize(query);
+  const aliasKeywords = ALIASES[aliasKey];
+  if (aliasKeywords) {
+    const aliasMatches = institutions.filter((inst) => {
+      const rawName = rawNormalize(inst.name);
+      return aliasKeywords.every((kw) => rawName.includes(kw));
+    });
+    if (aliasMatches.length > 0) return aliasMatches;
+  }
+
   const qSub = normalizeForSubstring(query);
   if (!qSub) return [];
 

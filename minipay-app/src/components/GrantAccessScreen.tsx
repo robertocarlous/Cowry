@@ -11,13 +11,12 @@ const USDC     = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C" as const;
 
 interface Props {
   address:     `0x${string}`;
-  username:    string;
   onGranted:   () => void;
 }
 
 type Step = "idle" | "signing_usdm" | "signing_usdc" | "done" | "error";
 
-export function GrantAccessScreen({ address, username, onGranted }: Props) {
+export function GrantAccessScreen({ address, onGranted }: Props) {
   const [step,  setStep]  = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -68,7 +67,6 @@ export function GrantAccessScreen({ address, username, onGranted }: Props) {
 
       <h1 className="text-2xl font-black mb-1 text-center">Authorize Cowry AI</h1>
       <p className="text-cowry-muted text-sm text-center mb-7 max-w-xs leading-relaxed">
-        {username && <>Hi <span className="text-white font-semibold">@{username}</span>! </>}
         Grant Cowry AI permission to
         execute payments on your behalf — you'll never need to sign a payment transaction again.
       </p>

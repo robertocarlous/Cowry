@@ -18,60 +18,48 @@ export function RemittanceQuoteCard({
   sendToken,
   receiveAmount,
   receiveCurrency,
-  rateLabel,
-  feeLabel,
   onConfirm,
   onCancel,
 }: Props) {
   return (
-    <div className="w-full bg-cowry-card border border-cowry-blue/20 rounded-2xl overflow-hidden">
+    <div className="w-full bg-cowry-dark border border-cowry-border rounded-2xl px-5 py-5">
 
-      {/* Header strip */}
-      <div className="border-b border-cowry-border px-4 py-2.5 flex items-center gap-2 bg-gradient-to-r from-cowry-blue/10 to-cowry-purple/10">
-        <span className="text-base">🌍</span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-cowry-blue">
-          Cross-Border Payment
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-sm font-semibold uppercase tracking-wide text-white">
+          Confirm Transfer
+        </span>
+        <span className="text-[11px] font-medium text-cowry-green bg-cowry-green/10 border border-cowry-green/40 rounded-full px-3 py-1">
+          Quote locked
         </span>
       </div>
 
-      {/* Details */}
-      <div className="px-4 pt-3 pb-1 space-y-2 text-sm">
-        <div className="flex justify-between gap-3">
-          <span className="text-cowry-muted">To</span>
-          <span className="font-semibold text-white text-right">{recipientLabel}</span>
+      {/* You pay / Recipient gets */}
+      <div className="flex justify-between gap-4 mb-5">
+        <div>
+          <p className="text-xs text-cowry-muted mb-1">You pay</p>
+          <p className="text-lg font-bold text-white">{sendAmount} {sendToken}</p>
         </div>
-        <div className="flex justify-between gap-3">
-          <span className="text-cowry-muted">They get</span>
-          <span className="font-bold text-cowry-mint text-right">
-            {receiveAmount} {receiveCurrency}
-          </span>
-        </div>
-        <div className="flex justify-between gap-3">
-          <span className="text-cowry-muted">You send</span>
-          <span className="font-semibold text-white text-right">
-            {sendAmount} {sendToken}
-          </span>
-        </div>
-        <div className="flex justify-between gap-3">
-          <span className="text-cowry-muted">Fee</span>
-          <span className="text-cowry-muted text-right">{feeLabel}</span>
+        <div className="text-right">
+          <p className="text-xs text-cowry-muted mb-1">Recipient gets</p>
+          <p className="text-lg font-bold text-white">{receiveAmount} {receiveCurrency}</p>
         </div>
       </div>
 
-      {/* Rate */}
-      <div className="mx-4 my-3 pt-2.5 border-t border-cowry-border flex justify-between text-xs">
-        <span className="text-cowry-muted font-medium">Rate</span>
-        <span className="text-cowry-muted">{rateLabel}</span>
+      {/* Recipient */}
+      <div className="mb-6">
+        <p className="text-xs text-cowry-muted mb-1">To</p>
+        <p className="text-sm font-semibold text-white">{recipientLabel}</p>
       </div>
 
       {/* Actions */}
-      <div className="px-4 pb-4 mt-1 flex gap-2">
+      <div className="flex gap-3">
         <button onClick={onConfirm}
-          className="flex-1 bg-cowry-blue text-cowry-darker text-sm font-bold py-2.5 rounded-xl hover:bg-cowry-mint active:scale-95 transition-all">
-          ✓ Confirm
+          className="flex-1 bg-cowry-green text-black text-sm font-bold py-3 rounded-full active:scale-95 transition-all">
+          Confirm
         </button>
         <button onClick={onCancel}
-          className="flex-1 bg-cowry-darker border border-cowry-border text-cowry-muted text-sm font-semibold py-2.5 rounded-xl hover:text-white transition-all">
+          className="flex-1 bg-transparent border border-cowry-green/60 text-white text-sm font-semibold py-3 rounded-full hover:border-cowry-green transition-all">
           Cancel
         </button>
       </div>

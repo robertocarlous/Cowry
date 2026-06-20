@@ -11,15 +11,15 @@ import { CommandMenu }        from "./CommandMenu";
 import type { Message }       from "@/lib/types";
 
 const SUGGESTIONS = [
-  "Send $50 to a bank account in Nigeria",
-  "Send $20 to mobile money in Kenya",
-  "What's my balance",
-  "Show my recent transactions",
+  { text: "Send $20 to mobile money in Kenya", icon: "/Vector.png" },
+  { text: "What's my balance", icon: "/Vector%201.png" },
+  { text: "Send $50 to a bank account in Nigeria", icon: "/Vector.png" },
+  { text: "Show my recent transactions", icon: "/Group%209.png" },
 ];
 
 export function ChatInterface() {
   const {
-    address, username, shortAddress,
+    address, shortAddress,
     isConnecting, walletError, onAccessGranted,
     ensureCelo, wrongChain, isConnected,
     hasGrantedAccess, isCheckingAccess,
@@ -72,9 +72,8 @@ export function ChatInterface() {
   if (isConnecting) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-cowry-dark">
-        <div className="relative w-16 h-16">
-          <div className="absolute inset-0 rounded-2xl blur-xl bg-cowry-blue/30 animate-pulse" />
-          <Image src="/cowry.png" alt="Cowry" width={64} height={64} className="relative rounded-2xl" priority />
+        <div className="animate-pulse">
+          <Image src="/Group%203.png" alt="CowryPay" width={160} height={48} className="object-contain" priority />
         </div>
         <p className="text-xs text-cowry-muted">Connecting wallet…</p>
       </div>
@@ -95,7 +94,6 @@ export function ChatInterface() {
     return (
       <GrantAccessScreen
         address={address!}
-        username={username ?? ""}
         onGranted={onAccessGranted}
       />
     );
@@ -109,35 +107,31 @@ export function ChatInterface() {
       <div className="flex items-center justify-between px-4 py-3 bg-cowry-dark border-b border-cowry-border flex-shrink-0">
         <Link
           href="/"
-          className="flex items-center justify-center w-9 h-9 rounded-full bg-cowry-card border border-cowry-border hover:border-cowry-blue/40 transition-colors"
+          className="flex items-center justify-center w-9 h-9 rounded-full bg-cowry-card border border-cowry-border hover:border-cowry-green/40 transition-colors"
           title="Back to homepage"
         >
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-cowry-muted">
-            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-          </svg>
+          <Image src="/logo.png" alt="Cowry" width={18} height={18} />
         </Link>
 
-        <div className="flex items-center gap-2.5">
-          <div className="relative w-8 h-8">
-            <div className="absolute inset-0 rounded-lg blur-md bg-cowry-blue/20" />
-            <Image src="/cowry.png" alt="Cowry" width={32} height={32} className="relative rounded-lg" />
-          </div>
-          <div className="leading-tight">
-            <p className="text-sm font-bold text-white">Cowry</p>
-            <p className="text-[10px] text-cowry-blue font-medium">
-              {username ? `@${username}` : shortAddress ?? "MiniPay"}
-            </p>
-          </div>
-        </div>
-
         <button
-          onClick={() => setShowCrossChainSend(true)}
-          className="flex items-center gap-1.5 text-xs bg-cowry-card border border-cowry-border hover:border-cowry-blue/40 text-cowry-muted hover:text-white px-3 py-2 rounded-full font-medium transition-all"
-          title="Send USDC from Celo to another chain"
+          className="flex items-center gap-1.5 text-xs font-medium text-white border border-cowry-green/60 rounded-full px-4 py-1.5 hover:border-cowry-green transition-colors"
+          title={address ?? undefined}
         >
-          <span>↗️</span>
-          <span className="hidden sm:inline">Send</span>
+          <span>{shortAddress ?? "MiniPay"}</span>
+          <svg viewBox="0 0 24 24" className="w-3 h-3 fill-cowry-green">
+            <path d="M7 10l5 5 5-5z" />
+          </svg>
         </button>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setShowCrossChainSend(true)}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-cowry-card transition-colors"
+            title="Send USDC from Celo to another chain"
+          >
+            <Image src="/Vector%202.png" alt="Send" width={18} height={18} />
+          </button>
+        </div>
       </div>
 
       {wrongChain && (
@@ -151,20 +145,18 @@ export function ChatInterface() {
 
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 bg-cowry-darker">
         {messages.length === 0 && (
-          <div className="flex flex-col items-center gap-5 pt-8">
-            <div className="text-center">
-              <p className="text-cowry-muted text-sm">
-                {username ? `Hi @${username}! What would you like to do?` : "What would you like to do?"}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 w-full max-w-xs">
+          <div className="flex flex-col items-center gap-3 pt-16 sm:pt-24">
+            <div className="flex flex-col gap-3 w-full max-w-xs">
               {SUGGESTIONS.map((s) => (
                 <button
-                  key={s}
-                  onClick={() => { setInput(s); inputRef.current?.focus(); }}
-                  className="text-left text-xs bg-cowry-card border border-cowry-border hover:border-cowry-blue/40 text-cowry-muted hover:text-white px-4 py-3 rounded-xl transition-all"
+                  key={s.text}
+                  onClick={() => { setInput(s.text); inputRef.current?.focus(); }}
+                  className="flex items-center gap-3 text-left text-sm bg-cowry-card border border-cowry-green/30 hover:border-cowry-green/70 text-gray-300 hover:text-white pl-2 pr-4 py-2 rounded-full transition-all"
                 >
-                  {s}
+                  <span className="flex items-center justify-center w-8 h-8 rounded-full border border-cowry-green/40 flex-shrink-0">
+                    <Image src={s.icon} alt="" width={16} height={16} />
+                  </span>
+                  {s.text}
                 </button>
               ))}
             </div>
@@ -187,12 +179,12 @@ export function ChatInterface() {
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-cowry-card border border-cowry-border rounded-2xl rounded-bl-sm px-4 py-3">
+            <div className="bg-[#141C16] border border-cowry-green/10 rounded-[22px] px-4 py-3">
               <span className="inline-flex gap-1 items-center">
                 {[0, 1, 2].map((i) => (
                   <span
                     key={i}
-                    className="w-1.5 h-1.5 bg-cowry-blue rounded-full animate-bounce"
+                    className="w-1.5 h-1.5 bg-cowry-green rounded-full animate-bounce"
                     style={{ animationDelay: `${i * 150}ms` }}
                   />
                 ))}
@@ -206,13 +198,21 @@ export function ChatInterface() {
 
       <div className="bg-cowry-dark border-t border-cowry-border px-3 py-3 flex items-center gap-2 flex-shrink-0">
         <button
-          onClick={() => setShowCommands(true)}
-          className="w-10 h-10 bg-cowry-card border border-cowry-border rounded-full flex items-center justify-center flex-shrink-0 hover:border-cowry-blue/40 hover:text-cowry-blue text-cowry-muted transition-all"
-          title="Browse commands"
+          onClick={() => setShowCommands((v) => !v)}
+          className="w-11 h-11 bg-cowry-card border border-cowry-border rounded-full flex items-center justify-center flex-shrink-0 hover:border-cowry-green/40 hover:text-cowry-green text-cowry-muted transition-all"
+          title={showCommands ? "Close commands" : "Browse commands"}
         >
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
-          </svg>
+          {showCommands ? (
+            <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-current">
+              <path d="M18.3 5.71L12 12.01l-6.3-6.3-1.42 1.42 6.3 6.3-6.3 6.3 1.42 1.42 6.3-6.3 6.3 6.3 1.42-1.42-6.3-6.3 6.3-6.3z" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-current">
+              <rect x="4" y="6" width="16" height="2" rx="1" />
+              <rect x="4" y="11" width="16" height="2" rx="1" />
+              <rect x="4" y="16" width="10" height="2" rx="1" />
+            </svg>
+          )}
         </button>
 
         <input
@@ -220,22 +220,26 @@ export function ChatInterface() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKey}
-          placeholder="Type a command or message…"
+          placeholder="Type or record a command"
           disabled={loading}
-          className="flex-1 bg-cowry-card border border-cowry-border rounded-full px-4 py-2.5 text-sm text-white placeholder-cowry-muted outline-none focus:border-cowry-blue/50 disabled:opacity-50 transition-colors"
+          className="flex-1 bg-cowry-card border border-cowry-border rounded-full px-4 py-3 text-sm text-white placeholder-cowry-muted outline-none focus:border-cowry-green/50 disabled:opacity-50 transition-colors"
         />
         <button
           onClick={loading ? stop : handleSend}
           disabled={!loading && !input.trim()}
-          className="w-10 h-10 bg-cowry-blue rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-95 transition-all hover:bg-cowry-mint"
+          className="w-11 h-11 bg-cowry-green rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-95 transition-all hover:brightness-110"
         >
           {loading ? (
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-cowry-darker">
               <rect x="6" y="6" width="12" height="12" rx="2" />
             </svg>
-          ) : (
+          ) : input.trim() ? (
             <svg viewBox="0 0 24 24" className="w-5 h-5 fill-cowry-darker translate-x-0.5">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
+              <path d="M12 14a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-3.08A7 7 0 0019 11h-2z" />
             </svg>
           )}
         </button>

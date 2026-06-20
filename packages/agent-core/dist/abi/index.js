@@ -12,9 +12,9 @@ function contractAddress(envKey, fallback) {
     if (v && /^0x[a-fA-F0-9]{40}$/.test(v)) return v;
     return fallback;
 }
-const DEFAULT_USERNAME_REGISTRY = "0x3b89d7b4997db5645db2829523ed3e79e55a0f02";
-const DEFAULT_GROUP_REGISTRY = "0xee7ee3852663917a12ef95852a9fc4e092e45a31";
-const DEFAULT_COWRYPAY = "0x2b0d2f1dec9ab3e06668145d21ed17715e288350";
+const DEFAULT_USERNAME_REGISTRY = "0x1d8050eda109364c15db4c2c5a172128eaeabd25";
+const DEFAULT_GROUP_REGISTRY = "0x3d8ea5b32dda2b3bfb71c9a07de25ecf28b73fd4";
+const DEFAULT_COWRYPAY = "0xf253dde47ca717737be3aefb76326180c2239e04";
 export const userRegistryContract = {
     abi: userRegistry,
     address: contractAddress("USERNAME_REGISTRY_ADDRESS", DEFAULT_USERNAME_REGISTRY)

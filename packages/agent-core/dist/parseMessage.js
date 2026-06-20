@@ -2,12 +2,12 @@ import { createGroqClient, parseWithLlm } from "./llm.js";
 import { ruleParse } from "./ruleParser.js";
 export function createMessageParser(options) {
     const client = options?.llmClient ?? createGroqClient();
-    return async (text)=>{
+    return async (text, signal)=>{
         const ruled = ruleParse(text);
         if (ruled) return ruled;
         if (client) {
             try {
-                return await parseWithLlm(client, text);
+                return await parseWithLlm(client, text, signal);
             } catch (e) {
                 const msg = e instanceof Error ? e.message : String(e);
                 return {

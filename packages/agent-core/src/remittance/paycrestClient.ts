@@ -17,6 +17,20 @@ async function readError(res: Response): Promise<string> {
   }
 }
 
+/** fetch() with a hard timeout, in addition to whatever external signal the caller passed. */
+function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, externalSignal?: AbortSignal): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  externalSignal?.addEventListener("abort", () => controller.abort());
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
+const RETRYABLE_STATUS = new Set([502, 503, 504]);
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export interface Institution {
   name: string;
   code: string;
@@ -44,22 +58,53 @@ export async function getInstitutions(currencyCode: string, signal?: AbortSignal
  * literal string "OK" to indicate the account is valid but the name is
  * unavailable — callers should treat that case specially (it is NOT an error).
  */
+const VERIFY_TIMEOUT_MS = 15_000;
+const VERIFY_MAX_ATTEMPTS = 3;
+
 export async function verifyAccount(institution: string, accountIdentifier: string, signal?: AbortSignal): Promise<string> {
-  const res = await fetch(`${PAYCREST_BASE}/verify-account`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ institution, accountIdentifier }),
-    signal,
-  });
-  if (!res.ok) {
-    throw new Error(`Paycrest verify-account error ${res.status}: ${await readError(res)}`);
+  let lastError: Error = new Error("Paycrest verify-account failed");
+
+  for (let attempt = 1; attempt <= VERIFY_MAX_ATTEMPTS; attempt++) {
+    if (signal?.aborted) throw lastError;
+
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(`${PAYCREST_BASE}/verify-account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ institution, accountIdentifier }),
+      }, VERIFY_TIMEOUT_MS, signal);
+    } catch (e) {
+      // Network error or our own timeout abort — retryable.
+      lastError = e instanceof Error ? e : new Error(String(e));
+      if (attempt < VERIFY_MAX_ATTEMPTS) { await sleep(attempt * 800); continue; }
+      throw new Error(
+        signal?.aborted ? "cancelled" : `Account verification timed out. The provider may be slow right now — please try again.`,
+      );
+    }
+
+    if (!res.ok) {
+      const detail = await readError(res);
+      lastError = new Error(`Paycrest verify-account error ${res.status}: ${detail}`);
+      if (RETRYABLE_STATUS.has(res.status) && attempt < VERIFY_MAX_ATTEMPTS) {
+        await sleep(attempt * 800);
+        continue;
+      }
+      if (RETRYABLE_STATUS.has(res.status)) {
+        throw new Error("Account verification timed out after retrying. Please try again in a moment.");
+      }
+      throw lastError;
+    }
+
+    const body = (await res.json()) as { data?: string };
+    const name = body.data?.trim();
+    if (!name) {
+      throw new Error("Paycrest verify-account response missing data");
+    }
+    return name;
   }
-  const body = (await res.json()) as { data?: string };
-  const name = body.data?.trim();
-  if (!name) {
-    throw new Error("Paycrest verify-account response missing data");
-  }
-  return name;
+
+  throw lastError;
 }
 
 /**
