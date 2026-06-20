@@ -4,11 +4,19 @@ import Image from "next/image";
 import Link  from "next/link";
 import { useWallet }          from "@/hooks/useWallet";
 import { useChat }            from "@/hooks/useChat";
+import { useVoiceRecorder }   from "@/hooks/useVoiceRecorder";
+import { transcribeAudio }    from "@/lib/agent";
 import { MessageBubble }      from "./MessageBubble";
 import { CrossChainSendPanel } from "./CrossChainSendPanel";
 import { GrantAccessScreen }  from "./GrantAccessScreen";
 import { CommandMenu }        from "./CommandMenu";
 import type { Message }       from "@/lib/types";
+
+function formatDuration(totalSec: number): string {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 const SUGGESTIONS = [
   { text: "Send $20 to mobile money in Kenya", icon: "/Vector.png" },
@@ -31,7 +39,11 @@ export function ChatInterface() {
   const [input,       setInput]       = useState("");
   const [showCrossChainSend, setShowCrossChainSend] = useState(false);
   const [showCommands, setShowCommands] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const { isRecording, durationSec, error: recordError, start: startRecording, stop: stopRecording, cancel: cancelRecording } =
+    useVoiceRecorder();
 
   const handleSend = () => {
     const text = input.trim();
@@ -41,6 +53,26 @@ export function ChatInterface() {
   };
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  };
+  const handleMicClick = async () => {
+    if (isRecording) {
+      setTranscribing(true);
+      try {
+        const blob = await stopRecording();
+        if (blob) {
+          const text = await transcribeAudio(blob);
+          if (text) send(text);
+          else addBotMessage("Couldn't hear anything in that recording — please try again.");
+        }
+      } catch (e) {
+        addBotMessage(`⚠️ ${e instanceof Error ? e.message : "Voice transcription failed"}`);
+      } finally {
+        setTranscribing(false);
+      }
+      return;
+    }
+    if (loading) return;
+    await startRecording();
   };
   const handleSign = (r: Extract<Message["response"], { type: "tx_ready" }>) => {
     if (!r) return;
@@ -199,7 +231,8 @@ export function ChatInterface() {
       <div className="bg-cowry-dark border-t border-cowry-border px-3 py-3 flex items-center gap-2 flex-shrink-0">
         <button
           onClick={() => setShowCommands((v) => !v)}
-          className="w-11 h-11 bg-cowry-card border border-cowry-border rounded-full flex items-center justify-center flex-shrink-0 hover:border-cowry-green/40 hover:text-cowry-green text-cowry-muted transition-all"
+          disabled={isRecording}
+          className="w-11 h-11 bg-cowry-card border border-cowry-border rounded-full flex items-center justify-center flex-shrink-0 hover:border-cowry-green/40 hover:text-cowry-green text-cowry-muted transition-all disabled:opacity-40"
           title={showCommands ? "Close commands" : "Browse commands"}
         >
           {showCommands ? (
@@ -215,21 +248,48 @@ export function ChatInterface() {
           )}
         </button>
 
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder="Type or record a command"
-          disabled={loading}
-          className="flex-1 bg-cowry-card border border-cowry-border rounded-full px-4 py-3 text-sm text-white placeholder-cowry-muted outline-none focus:border-cowry-green/50 disabled:opacity-50 transition-colors"
-        />
+        {isRecording ? (
+          <div className="flex-1 flex items-center gap-3 bg-cowry-card border border-cowry-border rounded-full px-4 py-3">
+            <button
+              onClick={cancelRecording}
+              className="text-cowry-muted hover:text-red-400 transition-colors flex-shrink-0"
+              title="Cancel recording"
+            >
+              <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-current">
+                <path d="M6 7h12v2H6V7zm2 3h2v8H8v-8zm6 0h2v8h-2v-8zM9 4h6l1 2h4v2H4V6h4l1-2z" />
+              </svg>
+            </button>
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+            <span className="text-sm text-white flex-1">Recording {formatDuration(durationSec)}</span>
+          </div>
+        ) : (
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="Type or record a command"
+            disabled={loading}
+            className="flex-1 bg-cowry-card border border-cowry-border rounded-full px-4 py-3 text-sm text-white placeholder-cowry-muted outline-none focus:border-cowry-green/50 disabled:opacity-50 transition-colors"
+          />
+        )}
+
         <button
-          onClick={loading ? stop : handleSend}
-          disabled={!loading && !input.trim()}
-          className="w-11 h-11 bg-cowry-green rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-95 transition-all hover:brightness-110"
+          onClick={isRecording ? handleMicClick : loading ? stop : input.trim() ? handleSend : handleMicClick}
+          disabled={transcribing}
+          className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-95 transition-all hover:brightness-110 ${
+            isRecording ? "bg-red-500" : "bg-cowry-green"
+          }`}
         >
-          {loading ? (
+          {transcribing ? (
+            <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-none stroke-cowry-darker animate-spin">
+              <circle cx="12" cy="12" r="9" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="40 60" />
+            </svg>
+          ) : isRecording ? (
+            <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-white">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+            </svg>
+          ) : loading ? (
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-cowry-darker">
               <rect x="6" y="6" width="12" height="12" rx="2" />
             </svg>
@@ -244,6 +304,12 @@ export function ChatInterface() {
           )}
         </button>
       </div>
+
+      {recordError && (
+        <div className="px-4 pb-2 -mt-1 flex-shrink-0">
+          <p className="text-xs text-red-400">{recordError}</p>
+        </div>
+      )}
 
       {showCrossChainSend && address && (
         <CrossChainSendPanel

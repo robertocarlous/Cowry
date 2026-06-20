@@ -68,6 +68,21 @@ export function getBridgeStatus(
   );
 }
 
+// ── Voice notes (speech → text) ─────────────────────────────────────────────
+
+export async function transcribeAudio(blob: Blob, signal?: AbortSignal): Promise<string> {
+  const form = new FormData();
+  form.set("audio", blob, "voice-note.webm");
+
+  const res = await fetch(`${base()}/transcribe`, { method: "POST", body: form, signal });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error ?? `Transcription failed (${res.status})`);
+  }
+  const data = await res.json() as { text?: string };
+  return data.text ?? "";
+}
+
 // ── Tx status ─────────────────────────────────────────────────────────────────
 
 export function getTxStatus(txHash: string) {
