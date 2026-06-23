@@ -2,11 +2,13 @@
 import { useEffect } from "react";
 import Image from "next/image";
 
+type Action = "cross-chain" | "tx-history";
+
 interface GridItem {
   label:    string;
   desc:     string;
   template?: string;
-  action?:  "cross-chain";
+  action?:  Action;
   iconBg:   string;
   icon:     React.ReactNode;
 }
@@ -15,7 +17,7 @@ interface ListItem {
   label:    string;
   desc:     string;
   template?: string;
-  action?:  "cross-chain";
+  action?:  Action;
   icon:     React.ReactNode;
 }
 
@@ -56,7 +58,7 @@ const LIST_ITEMS: ListItem[] = [
   {
     label: "Transaction History",
     desc:  "View your payment history",
-    template: "Show my recent transactions",
+    action: "tx-history",
     icon: <Image src="/Frame%209.png" alt="" width={20} height={20} />,
   },
   {
@@ -76,10 +78,11 @@ const LIST_ITEMS: ListItem[] = [
 interface Props {
   onSelect:        (template: string) => void;
   onOpenCrossChain: () => void;
+  onOpenTxHistory:  () => void;
   onClose:         () => void;
 }
 
-export function CommandMenu({ onSelect, onOpenCrossChain, onClose }: Props) {
+export function CommandMenu({ onSelect, onOpenCrossChain, onOpenTxHistory, onClose }: Props) {
   // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -87,8 +90,9 @@ export function CommandMenu({ onSelect, onOpenCrossChain, onClose }: Props) {
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const run = (item: { template?: string; action?: "cross-chain" }) => {
+  const run = (item: { template?: string; action?: Action }) => {
     if (item.action === "cross-chain") onOpenCrossChain();
+    else if (item.action === "tx-history") onOpenTxHistory();
     else if (item.template) onSelect(item.template);
     onClose();
   };

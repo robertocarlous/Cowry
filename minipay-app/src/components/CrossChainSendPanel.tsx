@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { isAddress } from "viem";
 import { getBridgeChains, getBridgeQuote, getBridgeStatus } from "@/lib/agent";
 import { formatBridgeSignError } from "@/lib/bridgeErrors";
@@ -10,9 +11,73 @@ import type { ChainInfo, BridgeQuoteResult } from "@/lib/types";
 const CELO_CHAIN_ID = 42220;
 
 const fieldClass =
-  "w-full bg-cowry-card border border-cowry-border rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-cowry-blue/50 transition-colors appearance-none";
+  "w-full bg-cowry-card border border-cowry-border rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-cowry-green/50 transition-colors appearance-none";
 
-const labelClass = "block text-[10px] font-semibold text-cowry-blue uppercase tracking-widest mb-1.5";
+const labelClass = "block text-[10px] font-semibold text-cowry-green uppercase tracking-widest mb-1.5";
+
+const CHAIN_LOGOS: Record<string, string> = {
+  Ethereum:    "/Ethereum.svg",
+  Optimism:    "/Optimism.svg",
+  "BNB Chain": "/BNBChain.svg",
+  Polygon:     "/Polygon.svg",
+  Base:        "/Base.svg",
+  Arbitrum:    "/Arbitrum.svg",
+  Linea:       "/Linea.svg",
+  Scroll:      "/Scroll.svg",
+  Celo:        "/celo.png",
+};
+
+function TokenLogo({ label }: { label: string }) {
+  if (label === "USDC") {
+    return (
+      <svg viewBox="0 0 32 32" className="flex-shrink-0 w-6 h-6">
+        <circle cx="16" cy="16" r="16" fill="#2775CA" />
+        <path
+          fill="#fff"
+          d="M16 26c-5.5 0-10-4.5-10-10S10.5 6 16 6s10 4.5 10 10-4.5 10-10 10z"
+        />
+        <path
+          fill="#2775CA"
+          d="M20.5 18.5c0-2.3-1.4-3.1-4.2-3.4-2-.3-2.4-.7-2.4-1.6 0-.9.6-1.4 1.9-1.4 1.2 0 1.8.4 2.1 1.4a.6.6 0 00.6.4h1c.3 0 .5-.2.5-.5v-.1c-.3-1.6-1.6-2.8-3.2-2.9v-1.4c0-.3-.2-.5-.6-.5h-.9c-.3 0-.5.2-.5.5v1.4c-2 .3-3.3 1.6-3.3 3.3 0 2.1 1.3 3 4.1 3.3 1.9.3 2.5.6 2.5 1.7s-.9 1.7-2.2 1.7c-1.7 0-2.3-.7-2.5-1.6a.6.6 0 00-.6-.4h-1.1c-.3 0-.5.2-.5.5v.1c.3 1.8 1.5 3 3.5 3.3v1.4c0 .3.2.5.6.5h.9c.3 0 .5-.2.5-.5v-1.4c2-.4 3.4-1.7 3.4-3.5z"
+        />
+        <path
+          fill="#fff"
+          d="M12.9 23.4c-4.1-1.5-6.2-6-4.7-10 .8-2.2 2.5-3.9 4.7-4.7.2-.1.3-.3.3-.5v-.9c0-.2-.1-.4-.3-.4h-.2c-5.1 1.6-7.9 7-6.3 12.1 1 3.1 3.4 5.5 6.3 6.3h.2c.2 0 .3-.2.3-.4v-.9c0-.2-.1-.5-.3-.6zM19.3 6.9c-.2.1-.3.3-.3.5v.9c0 .2.1.5.3.6 4.1 1.5 6.2 6 4.7 10-.8 2.2-2.5 3.9-4.7 4.7-.2.1-.3.3-.3.5v.9c0 .2.1.4.3.4h.2c5.1-1.6 7.9-7 6.3-12.1-1-3.1-3.4-5.5-6.3-6.3h-.2z"
+        />
+      </svg>
+    );
+  }
+  if (label === "USDT") {
+    return (
+      <svg viewBox="0 0 32 32" className="flex-shrink-0 w-6 h-6">
+        <circle cx="16" cy="16" r="16" fill="#26A17B" />
+        <path
+          fill="#fff"
+          d="M17.9 17.4v-.01c-.1 0-.62.04-1.77.04-.92 0-1.57-.03-1.8-.04v.01c-3.6-.16-6.28-.79-6.28-1.55s2.68-1.39 6.28-1.55v2.47c.23.02.9.06 1.81.06 1.1 0 1.65-.04 1.76-.06V14.3c3.59.16 6.26.79 6.26 1.55s-2.67 1.39-6.26 1.55zm0-3.35v-2.21h5v-3.32H9.17v3.32h5v2.21c-4.07.19-7.13 1-7.13 1.96s3.06 1.77 7.13 1.96v7h3.73v-7c4.06-.19 7.11-1 7.11-1.96s-3.05-1.77-7.11-1.96z"
+        />
+      </svg>
+    );
+  }
+  return (
+    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cowry-green flex items-center justify-center text-[10px] font-bold text-black">
+      {label.slice(0, 1)}
+    </span>
+  );
+}
+
+function ChainLogo({ name }: { name: string }) {
+  const src = CHAIN_LOGOS[name];
+  if (src) {
+    return (
+      <Image src={src} alt={name} width={24} height={24} className="flex-shrink-0 w-6 h-6 rounded-full object-contain" />
+    );
+  }
+  return (
+    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-cowry-green/20 border border-cowry-green/40 flex items-center justify-center text-[10px] font-bold text-cowry-green">
+      {name.slice(0, 1)}
+    </span>
+  );
+}
 
 interface Props {
   walletAddress: string;
@@ -207,34 +272,25 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
   };
 
   return (
-    <div
-      className="absolute inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="bg-cowry-dark border-t border-cowry-border rounded-t-3xl overflow-hidden max-h-[88vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex-shrink-0 px-4 pt-3 pb-3 border-b border-cowry-border">
-          <div className="w-10 h-1 bg-cowry-border rounded-full mx-auto mb-3" />
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">↗️</span>
-              <div>
-                <h2 className="text-sm font-bold text-white">Cross-chain send</h2>
-                <p className="text-[10px] text-cowry-muted">Celo USDC / USDm → USDC on another chain</p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-cowry-muted hover:text-white text-xs px-2 py-1 transition-colors"
-            >
-              Close
-            </button>
+    <div className="absolute inset-0 z-50 bg-cowry-darker flex flex-col">
+      <div className="flex flex-col h-full">
+        <div className="flex-shrink-0 px-4 py-4 border-b border-cowry-border flex items-center gap-3">
+          <button
+            onClick={onClose}
+            aria-label="Back"
+            className="text-white hover:text-cowry-green transition-colors -ml-1 p-1"
+          >
+            <svg viewBox="0 0 24 24" className="w-6 h-6 fill-none stroke-current stroke-2">
+              <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <div>
+            <h2 className="text-lg font-bold text-white">Cross-chain send</h2>
+            <p className="text-[10px] text-cowry-muted">Celo USDC / USDm → USDC on another chain</p>
           </div>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-4 py-4">
+        <div className="overflow-y-auto flex-1 px-4 py-5">
           {error && (
             <div className="mb-4 px-3 py-2.5 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl">
               {error}
@@ -242,40 +298,49 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
           )}
 
           {step === "form" || step === "quote" ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {chainsLoading ? (
                 <div className="flex flex-col items-center py-10 gap-3">
-                  <div className="w-10 h-10 rounded-full border-4 border-cowry-blue border-t-transparent animate-spin" />
+                  <div className="w-10 h-10 rounded-full border-4 border-cowry-green border-t-transparent animate-spin" />
                   <p className="text-xs text-cowry-muted">Loading destinations…</p>
                 </div>
               ) : (
                 <>
-                  <div className="bg-cowry-card border border-cowry-border rounded-2xl p-4 space-y-3">
-                    <p className={labelClass}>You send · Celo</p>
-                    <div>
-                      <label className="text-[10px] text-cowry-muted mb-1 block">Token</label>
-                      <select
-                        className={fieldClass}
-                        value={fromToken}
-                        onChange={(e) => { setFromToken(e.target.value); resetQuote(); }}
-                      >
-                        {sourceTokens.map((t) => (
-                          <option key={t.value} value={t.value} className="bg-cowry-card">
-                            {t.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-cowry-muted mb-1 block">Amount</label>
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        value={amount}
-                        onChange={(e) => { setAmount(e.target.value); resetQuote(); }}
-                        className={fieldClass}
-                      />
+                  <div>
+                    <p className="text-[10px] font-semibold text-cowry-muted uppercase tracking-widest mb-2">
+                      You send · Celo
+                    </p>
+                    <div className="bg-cowry-card border border-cowry-border rounded-2xl p-4 space-y-4">
+                      <div>
+                        <label className="text-xs text-cowry-muted mb-1 block">Amount</label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          value={amount}
+                          onChange={(e) => { setAmount(e.target.value); resetQuote(); }}
+                          className="w-full bg-transparent border-none outline-none text-4xl font-bold text-white placeholder-cowry-muted/30"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-cowry-muted mb-1 block">Token</label>
+                        <div className="relative">
+                          <select
+                            className={fieldClass + " pl-9"}
+                            value={fromToken}
+                            onChange={(e) => { setFromToken(e.target.value); resetQuote(); }}
+                          >
+                            {sourceTokens.map((t) => (
+                              <option key={t.value} value={t.value} className="bg-cowry-card">
+                                {t.label}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2">
+                            <TokenLogo label={selectedSource?.label ?? "?"} />
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -285,68 +350,77 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
                     </svg>
                   </div>
 
-                  <div className="bg-cowry-darker border border-cowry-border rounded-2xl p-4 space-y-3">
-                    <p className={labelClass}>Recipient receives</p>
-                    <div>
-                      <label className="text-[10px] text-cowry-muted mb-1 block">Chain</label>
-                      <select
-                        className={fieldClass}
-                        value={toChainId}
-                        onChange={(e) => {
-                          setToChainId(Number(e.target.value));
-                          resetQuote();
-                        }}
-                      >
-                        {destinations.map((c) => (
-                          <option key={c.chainId} value={c.chainId} className="bg-cowry-card">
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-cowry-muted mb-1 block">Recipient address</label>
-                      <input
-                        type="text"
-                        value={recipientAddress}
-                        onChange={(e) => {
-                          setRecipientAddress(e.target.value);
-                          resetQuote();
-                        }}
-                        placeholder="0x…"
-                        autoCapitalize="off"
-                        autoCorrect="off"
-                        spellCheck={false}
-                        className={fieldClass + (recipient && !recipientValid ? " border-red-500/50" : "")}
-                      />
-                    </div>
-                    {/* Quick-fill: only shown when field is empty or user hasn't typed their own address */}
-                    {!sendingToSelf && (
-                      <button
-                        type="button"
-                        onClick={() => { setRecipientAddress(walletAddress); resetQuote(); }}
-                        className="text-[10px] text-cowry-blue hover:text-cowry-mint transition-colors"
-                      >
-                        Send to myself ({shortAddress(walletAddress)})
-                      </button>
-                    )}
-                    {sendingToSelf && (
-                      <p className="text-[10px] text-amber-400">⚠️ Sending to your own wallet</p>
-                    )}
-                    <div>
-                      <label className="text-[10px] text-cowry-muted mb-1 block">Token</label>
-                      <div className={fieldClass + " opacity-80 cursor-default"}>
-                        USDC
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-cowry-muted">
-                      USDC on {toChain?.name ?? "destination"} at the address above
+                  <div>
+                    <p className="text-[10px] font-semibold text-cowry-muted uppercase tracking-widest mb-2">
+                      Recipient receives
                     </p>
+                    <div className="bg-cowry-darker border border-cowry-border rounded-2xl p-4 space-y-3">
+                      <div>
+                        <label className="text-[10px] text-cowry-muted mb-1 block">Chain</label>
+                        <div className="relative">
+                          <select
+                            className={fieldClass + " pl-9"}
+                            value={toChainId}
+                            onChange={(e) => {
+                              setToChainId(Number(e.target.value));
+                              resetQuote();
+                            }}
+                          >
+                            {destinations.map((c) => (
+                              <option key={c.chainId} value={c.chainId} className="bg-cowry-card">
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2">
+                            <ChainLogo name={toChain?.name ?? "?"} />
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-cowry-muted mb-1 block">Recipient address</label>
+                        <input
+                          type="text"
+                          value={recipientAddress}
+                          onChange={(e) => {
+                            setRecipientAddress(e.target.value);
+                            resetQuote();
+                          }}
+                          placeholder="0x…"
+                          autoCapitalize="off"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          className={fieldClass + (recipient && !recipientValid ? " border-red-500/50" : "")}
+                        />
+                      </div>
+                      {/* Quick-fill: only shown when field is empty or user hasn't typed their own address */}
+                      {!sendingToSelf && (
+                        <button
+                          type="button"
+                          onClick={() => { setRecipientAddress(walletAddress); resetQuote(); }}
+                          className="text-[10px] text-cowry-green hover:text-cowry-mint transition-colors"
+                        >
+                          Send to myself ({shortAddress(walletAddress)})
+                        </button>
+                      )}
+                      {sendingToSelf && (
+                        <p className="text-[10px] text-amber-400">⚠️ Sending to your own wallet</p>
+                      )}
+                      <div>
+                        <label className="text-[10px] text-cowry-muted mb-1 block">Token</label>
+                        <div className={fieldClass + " opacity-80 cursor-default flex items-center gap-2"}>
+                          <TokenLogo label="USDC" /> USDC
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-cowry-muted">
+                        USDC on {toChain?.name ?? "destination"} at the address above
+                      </p>
+                    </div>
                   </div>
 
                   {quote && (
-                    <div className="bg-cowry-card border border-cowry-blue/30 rounded-2xl p-4 space-y-2">
-                      <p className="text-[10px] font-semibold text-cowry-blue uppercase tracking-widest">
+                    <div className="bg-cowry-card border border-cowry-green/30 rounded-2xl p-4 space-y-2">
+                      <p className="text-[10px] font-semibold text-cowry-green uppercase tracking-widest">
                         Route · {quote.tool}
                       </p>
                       <p className="text-xs text-cowry-muted whitespace-pre-wrap leading-relaxed">
@@ -409,7 +483,7 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
               </p>
               <button
                 onClick={onClose}
-                className="mt-2 text-sm text-cowry-blue hover:text-cowry-mint font-medium transition-colors"
+                className="mt-2 text-sm text-cowry-green hover:text-cowry-mint font-medium transition-colors"
               >
                 Back to chat
               </button>
@@ -422,15 +496,20 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
             <button
               onClick={quote ? handleSign : handleGetQuote}
               disabled={(step === "quote" && !quote) || !amount || !fromToken || !toChain?.usdc || !recipientValid}
-              className="w-full py-3.5 rounded-full font-bold text-sm transition-all
+              className="w-full py-3.5 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2
                 disabled:opacity-40 disabled:cursor-not-allowed
-                enabled:bg-cowry-blue enabled:text-cowry-darker enabled:hover:bg-cowry-mint"
+                enabled:bg-cowry-green enabled:text-black enabled:hover:bg-cowry-mint"
             >
               {step === "quote" && !quote
                 ? "Getting quote…"
                 : quote
                   ? "Continue in wallet"
                   : "Continue"}
+              {!(step === "quote" && !quote) && (
+                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2">
+                  <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
             </button>
           </div>
         )}

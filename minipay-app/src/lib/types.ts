@@ -87,6 +87,12 @@ export type TxHistoryItem = {
   token: "USDC" | "USDm" | "USDT";
   counterparty: string;
   explorerUrl: string;
+  timestamp: string;
+};
+
+export type TxHistoryPage = {
+  items: TxHistoryItem[];
+  hasMore: boolean;
 };
 
 // ── UI message model ──────────────────────────────────────────────────────────

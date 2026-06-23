@@ -55,6 +55,7 @@ import {
   getOnRampOrderSettled,
 } from "./state.js";
 import type { ChatResponse, EncodedTxJson, TxHistoryItem } from "./types.js";
+import { fetchTransactionHistory } from "./txHistory.js";
 import type { ResolutionDeps } from "./deps/types.js";
 import {
   getOpportunities,
@@ -853,49 +854,7 @@ export async function adminFromIntent(
       return { kind: "info", message: "Connect your wallet to view your transaction history." };
     }
     try {
-      const KNOWN: Record<string, { symbol: "USDC" | "USDm" | "USDT"; decimals: number }> = {
-        "0xceba9300f2b948710d2653dd7b07f33a8b32118c": { symbol: "USDC",  decimals: 6  },
-        "0x765de816845861e75a25fca122bb6898b8b1282a": { symbol: "USDm",  decimals: 18 },
-        "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e": { symbol: "USDT",  decimals: 6  },
-      };
-
-      const url = `https://api.celoscan.io/api?module=account&action=tokentx&address=${wallet}&sort=desc&offset=20&page=1`;
-      const res  = await fetch(url);
-      const json = await res.json() as { status: string; result: unknown[] | string };
-
-      if (json.status !== "1" || !Array.isArray(json.result)) {
-        return { kind: "info", message: "No recent transactions found for your wallet." };
-      }
-
-      type CeloScanTx = {
-        hash: string;
-        from: string;
-        to: string;
-        value: string;
-        contractAddress: string;
-        tokenSymbol: string;
-        tokenDecimal: string;
-      };
-
-      const items: TxHistoryItem[] = (json.result as CeloScanTx[])
-        .filter(tx => KNOWN[tx.contractAddress.toLowerCase()])
-        .slice(0, 10)
-        .map(tx => {
-          const meta      = KNOWN[tx.contractAddress.toLowerCase()]!;
-          const direction = tx.from.toLowerCase() === wallet.toLowerCase() ? "sent" : "received";
-          const other     = direction === "sent" ? tx.to : tx.from;
-          const short     = `${other.slice(0, 6)}…${other.slice(-4)}`;
-          const amount    = (Number(BigInt(tx.value)) / 10 ** meta.decimals)
-            .toLocaleString(undefined, { maximumFractionDigits: 4 });
-          return {
-            hash:        tx.hash,
-            direction,
-            amount:      `${amount} ${meta.symbol}`,
-            token:       meta.symbol,
-            counterparty: short,
-            explorerUrl: `https://celoscan.io/tx/${tx.hash}`,
-          };
-        });
+      const { items } = await fetchTransactionHistory(wallet, 1, 10);
 
       if (items.length === 0) {
         return { kind: "info", message: "No recent USDC, USDT or USDm transactions found for your wallet." };

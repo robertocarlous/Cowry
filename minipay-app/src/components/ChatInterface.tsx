@@ -10,6 +10,7 @@ import { MessageBubble }      from "./MessageBubble";
 import { CrossChainSendPanel } from "./CrossChainSendPanel";
 import { GrantAccessScreen }  from "./GrantAccessScreen";
 import { CommandMenu }        from "./CommandMenu";
+import { TransactionHistoryModal } from "./TransactionHistoryModal";
 import type { Message }       from "@/lib/types";
 
 function formatDuration(totalSec: number): string {
@@ -39,6 +40,7 @@ export function ChatInterface() {
   const [input,       setInput]       = useState("");
   const [showCrossChainSend, setShowCrossChainSend] = useState(false);
   const [showCommands, setShowCommands] = useState(false);
+  const [showTxHistory, setShowTxHistory] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -118,7 +120,7 @@ export function ChatInterface() {
     if (isCheckingAccess) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-cowry-dark">
-          <div className="w-8 h-8 rounded-full border-2 border-cowry-blue border-t-transparent animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-cowry-green border-t-transparent animate-spin" />
           <p className="text-xs text-cowry-muted">Checking access…</p>
         </div>
       );
@@ -205,6 +207,7 @@ export function ChatInterface() {
             onApprove={(txs, symbol) =>
               signAndSend(txs, symbol ?? "USDC", { continuePendingDraft: true })
             }
+            onViewAllTxHistory={() => setShowTxHistory(true)}
             txLoading={txLoading}
           />
         ))}
@@ -326,7 +329,15 @@ export function ChatInterface() {
             setTimeout(() => inputRef.current?.focus(), 50);
           }}
           onOpenCrossChain={() => { setShowCommands(false); setShowCrossChainSend(true); }}
+          onOpenTxHistory={() => { setShowCommands(false); setShowTxHistory(true); }}
           onClose={() => setShowCommands(false)}
+        />
+      )}
+
+      {showTxHistory && address && (
+        <TransactionHistoryModal
+          walletAddress={address}
+          onClose={() => setShowTxHistory(false)}
         />
       )}
     </div>

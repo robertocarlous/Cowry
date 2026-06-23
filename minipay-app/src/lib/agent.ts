@@ -1,4 +1,4 @@
-import type { ChatResponse, BridgeChainsConfig, BridgeQuoteResult, BridgeStatus } from "./types";
+import type { ChatResponse, BridgeChainsConfig, BridgeQuoteResult, BridgeStatus, TxHistoryPage } from "./types";
 
 function base(): string {
   // In production/staging: set NEXT_PUBLIC_AGENT_URL to the hosted agent URL.
@@ -92,4 +92,10 @@ export async function transcribeAudio(blob: Blob, signal?: AbortSignal): Promise
 
 export function getTxStatus(txHash: string) {
   return get<{ status: string; message: string }>(`/tx/${txHash}`);
+}
+
+// ── Tx history (full, paginated) ────────────────────────────────────────────
+
+export function getTxHistory(address: string, page: number): Promise<TxHistoryPage> {
+  return get<TxHistoryPage>(`/tx-history?address=${address}&page=${page}`);
 }

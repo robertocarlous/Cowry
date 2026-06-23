@@ -14,10 +14,11 @@ interface Props {
     txs: NonNullable<Extract<Message["response"], { type: "clarify" }>["transactions"]>,
     tokenSymbol?: string,
   ) => void;
+  onViewAllTxHistory: () => void;
   txLoading:  boolean;
 }
 
-export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove, txLoading }: Props) {
+export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove, onViewAllTxHistory, txLoading }: Props) {
   const isUser = message.role === "user";
   const r = message.response;
 
@@ -92,7 +93,7 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
 
         {/* Transaction history */}
         {r?.type === "tx_history" && (
-          <TxHistoryCard items={r.items} />
+          <TxHistoryCard items={r.items} onViewAll={onViewAllTxHistory} />
         )}
 
         {/* On-ramp virtual account */}

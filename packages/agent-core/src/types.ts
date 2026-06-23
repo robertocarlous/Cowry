@@ -245,6 +245,8 @@ export type TxHistoryItem = {
   token: "USDC" | "USDm" | "USDT";
   counterparty: string;  // short address e.g. "0xAbc…1234"
   explorerUrl: string;
+  /** ISO timestamp of the transaction. */
+  timestamp: string;
 };
 
 export type SessionState = {
