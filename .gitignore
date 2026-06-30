@@ -23,3 +23,5 @@ coverage/
 # ── OS / editor ───────────────────────────────────────────────────────────────
 .DS_Store
 *.log
+*.deb
+tsconfig.tsbuildinfo
