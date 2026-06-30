@@ -278,7 +278,7 @@ export default function LandingPage() {
             {/* Human image */}
             <div className="flex-shrink-0">
               <Image
-                src="/human.png"
+                src="/Man pressing his Phone.png"
                 alt="Person using CowryPay on phone"
                 width={340}
                 height={420}
