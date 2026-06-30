@@ -60,10 +60,10 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { n: 1, title: "Open CowryPay", desc: "Works on MiniPay. Your wallet connects automatically, no sign-up needed." },
-  { n: 2, title: "Grant CowryPay AI access", desc: "One-time approval lets the AI agent execute payments on your behalf." },
-  { n: 3, title: "Type what you want", desc: `Say "Send $50 to a bank account in Nigeria" or "Bridge 20 USDC to Base".` },
-  { n: 4, title: "Tap Confirm", desc: "Review the preview and tap confirm. CowryPay handles the rest." },
+  { n: 1, title: "Open Cowry", desc: "Works on MiniPay. Your wallet connects automatically, no signup needed." },
+  { n: 2, title: "Grant Cowry AI access", desc: "One-time approval lets the AI agent execute payments on your behalf." },
+  { n: 3, title: "Open Cowry", desc: "Works on MiniPay. Your wallet connects automatically, no signup needed." },
+  { n: 4, title: "Grant Cowry AI access", desc: "One-time approval lets the AI agent execute payments on your behalf." },
 ];
 
 export default function LandingPage() {
@@ -246,7 +246,7 @@ export default function LandingPage() {
       {/* ── How it works ────────────────────────────────────────────────── */}
       <section id="how-it-works" className="px-6 py-20">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
+          <div className="mb-10">
             <p className="text-cowry-green text-xs font-semibold tracking-widest uppercase mb-3">How it works</p>
             <h2 className="text-3xl sm:text-4xl font-black">Four steps from zero to paid</h2>
           </div>
@@ -256,18 +256,18 @@ export default function LandingPage() {
             {/* Steps card */}
             <div className="flex-1 bg-[#1B1B1B] border border-[#263B25] rounded-xl px-6 py-6 flex flex-col justify-between min-h-[420px]">
               {STEPS.map((s, i) => (
-                <div key={s.n} className="flex gap-5 items-start">
-                  {/* Left column: badge + connector line between badges */}
+                <div key={`${s.n}-${i}`} className="flex gap-4 items-start">
+                  {/* Left column: badge + connector line */}
                   <div className="flex flex-col items-center flex-shrink-0">
-                    <div className="w-12 h-12 rounded-xl bg-cowry-green flex items-center justify-center flex-shrink-0">
-                      <span className="text-black font-black text-xl">{s.n}</span>
+                    <div className="w-8 h-8 rounded-lg bg-cowry-green flex items-center justify-center flex-shrink-0">
+                      <span className="text-black font-black text-sm">{s.n}</span>
                     </div>
                     {i < STEPS.length - 1 && (
-                      <div className="w-px bg-cowry-green flex-1 min-h-[32px] mt-1" />
+                      <div className="w-px bg-cowry-green/40 flex-1 min-h-[28px] mt-1" />
                     )}
                   </div>
                   {/* Text */}
-                  <div className="pt-1">
+                  <div className="pt-0.5">
                     <h3 className="font-bold text-white text-sm mb-1">{s.title}</h3>
                     <p className="text-cowry-muted text-xs leading-relaxed">{s.desc}</p>
                   </div>
@@ -275,15 +275,27 @@ export default function LandingPage() {
               ))}
             </div>
 
-            {/* Human image */}
-            <div className="flex-shrink-0">
+            {/* Human image with floating chat bubbles */}
+            <div
+              className="flex-shrink-0 relative w-[340px] h-[420px]"
+              style={{ maskImage: "radial-gradient(ellipse 85% 90% at 50% 60%, black 55%, transparent 100%)", WebkitMaskImage: "radial-gradient(ellipse 85% 90% at 50% 60%, black 55%, transparent 100%)" }}
+            >
               <Image
-                src="/human.png"
+                src="/image.jpeg"
                 alt="Person using CowryPay on phone"
-                width={340}
-                height={420}
-                className="object-contain"
+                fill
+                className="object-contain object-bottom"
               />
+              {/* Floating chat bubbles */}
+              <div className="absolute top-4 right-[-8px] flex flex-col gap-2 w-[210px] z-10">
+                <div className="self-end bg-cowry-green text-black font-semibold text-xs px-4 py-2.5 rounded-2xl rounded-br-sm shadow-2xl">
+                  Send $50 to a bank account in Nigeria
+                </div>
+                <div className="self-start bg-[#1E2A1E] border border-[#263B25] text-white text-xs px-4 py-2.5 rounded-2xl rounded-bl-sm shadow-2xl">
+                  Got it. Which bank and account number should I send to?
+                </div>
+                <p className="text-cowry-muted text-[10px] text-right pr-1">10:23am</p>
+              </div>
             </div>
 
           </div>
