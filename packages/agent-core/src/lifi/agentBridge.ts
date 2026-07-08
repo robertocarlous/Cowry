@@ -70,32 +70,86 @@ export async function executeBridgeForUser(
   const value = BigInt(tx.value || "0");
   const approvalAddress = (final.estimate.approvalAddress ?? LIFI_DIAMOND) as `0x${string}`;
 
-  const approved = await checkLifiApproval(
-    params.fromTokenAddress as `0x${string}`,
-    params.fromAddress,
-    BigInt(params.fromAmount),
+  // Read allowance and agent balance in parallel for speed
+  const client = createPublicClient({ chain: celo, transport: http(rpcUrl()) });
+  const { publicClient: agentClient, address: agentAddress } = getAgentWallet();
+  const [currentAllowance, agentCelo] = await Promise.all([
+    client.readContract({
+      address: params.fromTokenAddress as `0x${string}`,
+      abi: erc20Abi,
+      functionName: "allowance",
+      args: [params.fromAddress, approvalAddress],
+    }),
+    value > 0n ? agentClient.getBalance({ address: agentAddress }) : Promise.resolve(value + 1n),
+  ]);
+
+  console.info("[agentBridge] execute pre-flight", {
+    tool:            final.tool,
+    fromAddress:     params.fromAddress,
+    fromAmount:      params.fromAmount,
     approvalAddress,
-  );
-  if (!approved) {
+    currentAllowance: currentAllowance.toString(),
+    neededAllowance:  params.fromAmount,
+    approvalOk:      currentAllowance >= BigInt(params.fromAmount),
+    relayValue:      formatEther(value),
+    agentCelo:       formatEther(agentCelo),
+    celoOk:          agentCelo >= value,
+  });
+
+  if (currentAllowance < BigInt(params.fromAmount)) {
     throw new Error(
-      "Token not approved. The user must approve the LI.FI Diamond before the agent can execute.",
+      `USDC not approved. The user must approve ${approvalAddress} to spend at least ` +
+      `${params.fromAmount} units of ${params.fromTokenAddress}. ` +
+      `Current allowance: ${currentAllowance.toString()}.`,
     );
   }
 
-  // Step 3 — verify agent has enough CELO, then execute
-  if (value > 0n) {
-    const { publicClient, address: agentAddress } = getAgentWallet();
-    const agentCelo = await publicClient.getBalance({ address: agentAddress });
-    if (agentCelo < value) {
-      throw new Error(
-        `Agent wallet has insufficient CELO to cover the relay fee. ` +
-        `Needs ${formatEther(value)} CELO, has ${formatEther(agentCelo)} CELO. ` +
-        `Please top up the agent wallet at ${agentAddress}.`,
-      );
-    }
+  if (value > 0n && agentCelo < value) {
+    throw new Error(
+      `Agent wallet has insufficient CELO to cover the relay fee. ` +
+      `Needs ${formatEther(value)} CELO, has ${formatEther(agentCelo)} CELO. ` +
+      `Please top up the agent wallet at ${agentAddress}.`,
+    );
   }
 
-  const txHash = await agentSendTx(tx.to, tx.data, value);
+  // Simulate the tx first so we can surface the actual revert reason before submitting
+  try {
+    await agentClient.call({
+      account:  agentAddress,
+      to:       tx.to,
+      data:     tx.data,
+      value,
+    });
+  } catch (simErr: unknown) {
+    const e = simErr as Record<string, unknown>;
+    const simMsg = e instanceof Error ? e.message : String(simErr);
+    const revertData = (e?.data as string) || (e?.cause as Record<string, unknown>)?.data as string || "";
+    console.error("[agentBridge] simulation reverted", {
+      tool:       final.tool,
+      to:         tx.to,
+      value:      formatEther(value),
+      dataPrefix: tx.data.slice(0, 66),
+      error:      simMsg,
+      revertData,
+      cause:      String((e?.cause as Error)?.message ?? ""),
+    });
+    throw new Error(`Bridge simulation failed (${final.tool}): ${simMsg}${revertData ? ` [data: ${revertData.slice(0, 20)}...]` : ""}`);
+  }
+
+  let txHash: `0x${string}`;
+  try {
+    txHash = await agentSendTx(tx.to, tx.data, value);
+  } catch (err) {
+    console.error("[agentBridge] agentSendTx failed", {
+      tool:       final.tool,
+      to:         tx.to,
+      value:      formatEther(value),
+      dataPrefix: tx.data.slice(0, 66),
+      error:      err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
+
   return {
     txHash,
     approvalAddress,

@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid wallet or recipient address." }, { status: 400 });
   }
 
+  console.info("[bridge/execute] request", { fromTokenAddress, fromAmount, fromWallet, toChainId, toTokenAddress, toAddress });
+
   try {
     const { txHash } = await executeBridgeForUser({
       fromChainId:      42220,
@@ -39,6 +41,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    console.error("[bridge/execute] failed", { fromWallet, fromAmount, error: msg });
     const status = msg.includes("not approved") ? 403 : 502;
     return NextResponse.json({ error: msg }, { status });
   }
