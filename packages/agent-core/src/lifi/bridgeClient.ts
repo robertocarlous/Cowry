@@ -186,19 +186,49 @@ function chainName(id: number): string {
 
 // ── Quote ─────────────────────────────────────────────────────────────────────
 
-/** Get a single LI.FI quote at the given fee ratio (no dynamic adjustment). */
-function rawBridgeQuote(params: BridgeQuoteParams, feeRatio: number): Promise<BridgeQuote> {
-  return lifiGet<BridgeQuote>("/quote", {
-    fromChain:    String(params.fromChainId),
-    toChain:      String(params.toChainId),
-    fromToken:    params.fromTokenAddress,
-    toToken:      params.toTokenAddress,
-    fromAmount:   params.fromAmount,
-    fromAddress:  params.fromAddress,
-    toAddress:    params.toAddress,
-    integrator:   INTEGRATOR,
-    fee:          feeRatio.toFixed(6),
-  });
+/**
+ * Get a single LI.FI quote at the given fee ratio (no dynamic adjustment).
+ *
+ * Bridge preference order:
+ *  1. CCTP (Circle's native USDC transfer — zero native relay fee, ~20 min)
+ *  2. Across Protocol (fast relayer, minimal native fee, ~2 min)
+ *  3. Everything else (Squid, Stargate, etc.) if neither of the above has a route
+ *
+ * CCTP/Across are preferred because they don't require native CELO as msg.value,
+ * so the agent wallet doesn't need a CELO balance to cover relay costs.
+ */
+async function rawBridgeQuote(params: BridgeQuoteParams, feeRatio: number): Promise<BridgeQuote> {
+  const base = {
+    fromChain:   String(params.fromChainId),
+    toChain:     String(params.toChainId),
+    fromToken:   params.fromTokenAddress,
+    toToken:     params.toTokenAddress,
+    fromAmount:  params.fromAmount,
+    fromAddress: params.fromAddress,
+    toAddress:   params.toAddress,
+    integrator:  INTEGRATOR,
+    fee:         feeRatio.toFixed(6),
+  };
+
+  // Try CCTP first (zero native relay fee), then Across, then fall back to default
+  for (const preferBridges of ["cctp", "across", ""]) {
+    try {
+      const q = await lifiGet<BridgeQuote>("/quote", preferBridges ? { ...base, preferBridges } : base);
+      // Reject routes that require >0.1 CELO native relay — those drain the agent wallet.
+      // Fall through to next bridge preference instead.
+      const nativeValue = BigInt(q.transactionRequest.value || "0");
+      const CELO_THRESHOLD = 100_000_000_000_000_000n; // 0.1 CELO in wei
+      if (nativeValue > CELO_THRESHOLD && preferBridges !== "") {
+        continue; // Try next preference
+      }
+      return q;
+    } catch (e) {
+      if (preferBridges === "") throw e; // No more fallbacks
+      // Route not available via this bridge — try next
+    }
+  }
+  // Should never reach here (last iteration throws), but TypeScript needs this
+  throw new Error("No bridge route available.");
 }
 
 /**

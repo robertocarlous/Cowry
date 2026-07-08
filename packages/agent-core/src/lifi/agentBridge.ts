@@ -6,9 +6,9 @@
  * pulled by the bridge via their one-time max-approval of the LI.FI Diamond.
  */
 
-import { createPublicClient, erc20Abi, http } from "viem";
+import { createPublicClient, erc20Abi, formatEther, http } from "viem";
 import { celo } from "viem/chains";
-import { agentSendTx } from "../agent/wallet.js";
+import { agentSendTx, getAgentWallet } from "../agent/wallet.js";
 import { getBridgeQuote, type BridgeQuoteParams } from "./bridgeClient.js";
 
 /** Canonical LI.FI Diamond Router — same address on all EVM chains. */
@@ -82,7 +82,19 @@ export async function executeBridgeForUser(
     );
   }
 
-  // Step 3 — agent pays CELO relay fee, user pays via USDC deduction
+  // Step 3 — verify agent has enough CELO, then execute
+  if (value > 0n) {
+    const { publicClient, address: agentAddress } = getAgentWallet();
+    const agentCelo = await publicClient.getBalance({ address: agentAddress });
+    if (agentCelo < value) {
+      throw new Error(
+        `Agent wallet has insufficient CELO to cover the relay fee. ` +
+        `Needs ${formatEther(value)} CELO, has ${formatEther(agentCelo)} CELO. ` +
+        `Please top up the agent wallet at ${agentAddress}.`,
+      );
+    }
+  }
+
   const txHash = await agentSendTx(tx.to, tx.data, value);
   return {
     txHash,
