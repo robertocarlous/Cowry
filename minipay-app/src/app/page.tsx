@@ -286,16 +286,6 @@ export default function LandingPage() {
                 fill
                 className="object-contain object-bottom"
               />
-              {/* Floating chat bubbles */}
-              <div className="absolute top-4 right-[-8px] flex flex-col gap-2 w-[210px] z-10">
-                <div className="self-end bg-cowry-green text-black font-semibold text-xs px-4 py-2.5 rounded-2xl rounded-br-sm shadow-2xl">
-                  Send $50 to a bank account in Nigeria
-                </div>
-                <div className="self-start bg-[#1E2A1E] border border-[#263B25] text-white text-xs px-4 py-2.5 rounded-2xl rounded-bl-sm shadow-2xl">
-                  Got it. Which bank and account number should I send to?
-                </div>
-                <p className="text-cowry-muted text-[10px] text-right pr-1">10:23am</p>
-              </div>
             </div>
 
           </div>
