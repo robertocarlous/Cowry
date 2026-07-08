@@ -1,15 +1,29 @@
 /**
  * Agent-executed cross-chain bridge.
  *
- * The agent wallet (AGENT_PRIVATE_KEY) broadcasts the LI.FI bridge tx and pays
- * the native CELO relay fee — the user never needs CELO. The user's USDC is
- * pulled by the bridge via their one-time max-approval of the LI.FI Diamond.
+ * Flow:
+ *  1. Verify user has enough USDC and CowryPay allowance.
+ *  2. Pull USDC from user → agent wallet via CowryPay.payOnBehalf.
+ *     (User already approved CowryPay in the GrantAccessScreen onboarding step.)
+ *  3. Get LI.FI quote with fromAddress = agentWallet so msg.sender == fromAddress.
+ *  4. Agent self-approves the LI.FI spender for its own USDC if needed.
+ *  5. Agent broadcasts the bridge tx and pays any CELO relay fee from its balance.
+ *
+ * If steps 3-5 fail after the USDC pull, we attempt to refund the user.
  */
 
-import { createPublicClient, erc20Abi, formatEther, http } from "viem";
+import {
+  createPublicClient,
+  erc20Abi,
+  encodeFunctionData,
+  formatEther,
+  http,
+  type PublicClient,
+} from "viem";
 import { celo } from "viem/chains";
 import { agentSendTx, getAgentWallet } from "../agent/wallet.js";
 import { getBridgeQuote, type BridgeQuoteParams } from "./bridgeClient.js";
+import { cowrypayContract } from "../abi/index.js";
 
 /** Canonical LI.FI Diamond Router — same address on all EVM chains. */
 export const LIFI_DIAMOND = "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE" as const;
@@ -18,141 +32,190 @@ function rpcUrl() {
   return process.env.CELO_RPC_URL?.trim() ?? "https://forno.celo.org";
 }
 
-/**
- * Check whether the user has approved `spender` to spend at least `needed`
- * units of `token`. Defaults to LIFI_DIAMOND if no spender is provided.
- */
-export async function checkLifiApproval(
-  token: `0x${string}`,
-  owner: `0x${string}`,
-  needed: bigint,
-  spender: `0x${string}` = LIFI_DIAMOND,
-): Promise<boolean> {
-  const client = createPublicClient({ chain: celo, transport: http(rpcUrl()) });
-  const allowance = await client.readContract({
-    address: token,
-    abi: erc20Abi,
-    functionName: "allowance",
-    args: [owner, spender],
-  });
-  return allowance >= needed;
-}
-
 export type ExecuteBridgeResult = {
   txHash: `0x${string}`;
   approvalAddress: string;
   platformFeeUSD: number;
 };
 
+async function refundUser(
+  client: PublicClient,
+  token: `0x${string}`,
+  userWallet: `0x${string}`,
+  amount: bigint,
+): Promise<void> {
+  const agentBal = await client.readContract({
+    address: token,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [(getAgentWallet().address)],
+  });
+  const refundAmount = agentBal < amount ? agentBal : amount;
+  if (refundAmount === 0n) return;
+
+  const transferData = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "transfer",
+    args: [userWallet, refundAmount],
+  });
+
+  try {
+    const h = await agentSendTx(token, transferData, 0n);
+    console.info("[agentBridge] user refunded after bridge failure", { txHash: h, refundAmount: refundAmount.toString() });
+  } catch (e) {
+    console.error(
+      "[agentBridge] REFUND FAILED — manual intervention required",
+      { userWallet, token, refundAmount: refundAmount.toString(), error: e instanceof Error ? e.message : String(e) },
+    );
+  }
+}
+
 /**
  * Execute a cross-chain bridge send on behalf of a user.
  *
- * Two-quote flow:
- *  1. Preview quote (base 0.3% fee) → discover the relay CELO cost in USD.
- *  2. Final quote with adjusted fee = 0.3% + (relayCostUSD / sendAmountUSD).
- *     This converts the CELO cost into USDC deducted from the send amount, so
- *     Cowry's integrator wallet receives enough to replenish the agent's CELO.
- *  3. Agent broadcasts the final quote's tx, paying CELO from its own wallet.
+ * `params.fromAddress` must be the user's wallet (token owner / CowryPay approver).
+ * The agent wallet acts as the LI.FI `fromAddress` so msg.sender == fromAddress.
  */
 export async function executeBridgeForUser(
   params: BridgeQuoteParams,
 ): Promise<ExecuteBridgeResult> {
-  // Step 1 — preview to discover relay cost
-  const preview = await getBridgeQuote(params, 0);
-  const relayCostUSD = preview.estimate.gasCosts.reduce(
-    (sum, g) => sum + Number(g.amountUSD),
-    0,
-  );
+  const { publicClient: agentClient, address: agentAddress } = getAgentWallet();
+  const client = createPublicClient({ chain: celo, transport: http(rpcUrl()) });
+  const userWallet = params.fromAddress;
+  const tokenAddress = params.fromTokenAddress as `0x${string}`;
+  const fromAmount = BigInt(params.fromAmount);
 
-  // Step 2 — final quote with adjusted fee (relay cost baked in)
-  const final = await getBridgeQuote(params, relayCostUSD);
+  // ── Step 1: verify user readiness ───────────────────────────────────────────
+  const [userBalance, cowrypayAllowance] = await Promise.all([
+    client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "balanceOf",  args: [userWallet] }),
+    client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "allowance", args: [userWallet, cowrypayContract.address] }),
+  ]);
+
+  console.info("[agentBridge] user pre-flight", {
+    userWallet,
+    fromAmount:         fromAmount.toString(),
+    userBalance:        userBalance.toString(),
+    cowrypayAllowance:  cowrypayAllowance.toString(),
+  });
+
+  if (userBalance < fromAmount) {
+    throw new Error(
+      `Insufficient balance. User has ${userBalance} base units of ${tokenAddress}, needs ${fromAmount}.`,
+    );
+  }
+  if (cowrypayAllowance < fromAmount) {
+    throw new Error(
+      `Token not approved. The user must approve CowryPay (${cowrypayContract.address}) to spend ` +
+      `at least ${fromAmount} base units. Current allowance: ${cowrypayAllowance}. ` +
+      `This is normally done once in the Authorize Cowry AI screen.`,
+    );
+  }
+
+  // ── Step 2: pull USDC from user to agent via CowryPay.payOnBehalf ───────────
+  const pullData = encodeFunctionData({
+    abi: cowrypayContract.abi,
+    functionName: "payOnBehalf",
+    args: [userWallet, tokenAddress, agentAddress, fromAmount],
+  });
+
+  console.info("[agentBridge] pulling USDC from user to agent");
+  const pullHash = await agentSendTx(cowrypayContract.address, pullData, 0n);
+  console.info("[agentBridge] pull tx sent", { pullHash });
+
+  // Wait for confirmation before proceeding to bridge
+  await agentClient.waitForTransactionReceipt({ hash: pullHash, timeout: 60_000 });
+  console.info("[agentBridge] pull confirmed");
+
+  // ── Step 3: get LI.FI quotes with agentAddress as fromAddress ───────────────
+  const agentParams: BridgeQuoteParams = { ...params, fromAddress: agentAddress };
+
+  let final: Awaited<ReturnType<typeof getBridgeQuote>>;
+  try {
+    const preview = await getBridgeQuote(agentParams, 0);
+    const relayCostUSD = preview.estimate.gasCosts.reduce(
+      (sum, g) => sum + Number(g.amountUSD),
+      0,
+    );
+    final = await getBridgeQuote(agentParams, relayCostUSD);
+  } catch (quoteErr) {
+    await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
+    throw quoteErr;
+  }
+
   const tx = final.transactionRequest;
   const value = BigInt(tx.value || "0");
   const approvalAddress = (final.estimate.approvalAddress ?? LIFI_DIAMOND) as `0x${string}`;
 
-  // Read allowance and agent balance in parallel for speed
-  const client = createPublicClient({ chain: celo, transport: http(rpcUrl()) });
-  const { publicClient: agentClient, address: agentAddress } = getAgentWallet();
-  const [currentAllowance, agentCelo] = await Promise.all([
-    client.readContract({
-      address: params.fromTokenAddress as `0x${string}`,
-      abi: erc20Abi,
-      functionName: "allowance",
-      args: [params.fromAddress, approvalAddress],
-    }),
-    value > 0n ? agentClient.getBalance({ address: agentAddress }) : Promise.resolve(value + 1n),
-  ]);
-
-  console.info("[agentBridge] execute pre-flight", {
-    tool:            final.tool,
-    fromAddress:     params.fromAddress,
-    fromAmount:      params.fromAmount,
-    approvalAddress,
-    currentAllowance: currentAllowance.toString(),
-    neededAllowance:  params.fromAmount,
-    approvalOk:      currentAllowance >= BigInt(params.fromAmount),
-    relayValue:      formatEther(value),
-    agentCelo:       formatEther(agentCelo),
-    celoOk:          agentCelo >= value,
+  // ── Step 4: ensure agent has approved the LI.FI spender ─────────────────────
+  const agentAllowance = await agentClient.readContract({
+    address: tokenAddress,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: [agentAddress, approvalAddress],
   });
 
-  if (currentAllowance < BigInt(params.fromAmount)) {
-    throw new Error(
-      `USDC not approved. The user must approve ${approvalAddress} to spend at least ` +
-      `${params.fromAmount} units of ${params.fromTokenAddress}. ` +
-      `Current allowance: ${currentAllowance.toString()}.`,
-    );
-  }
+  console.info("[agentBridge] agent pre-bridge", {
+    tool:           final.tool,
+    approvalAddress,
+    agentAllowance: agentAllowance.toString(),
+    fromAmount:     fromAmount.toString(),
+    relayValue:     formatEther(value),
+  });
 
-  if (value > 0n && agentCelo < value) {
-    throw new Error(
-      `Agent wallet has insufficient CELO to cover the relay fee. ` +
-      `Needs ${formatEther(value)} CELO, has ${formatEther(agentCelo)} CELO. ` +
-      `Please top up the agent wallet at ${agentAddress}.`,
-    );
-  }
-
-  // Simulate the tx first so we can surface the actual revert reason before submitting
-  try {
-    await agentClient.call({
-      account:  agentAddress,
-      to:       tx.to,
-      data:     tx.data,
-      value,
+  if (agentAllowance < fromAmount) {
+    console.info("[agentBridge] agent self-approving LI.FI spender", { approvalAddress });
+    const approveData = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [approvalAddress, 2n ** 256n - 1n],
     });
+    const approveTxHash = await agentSendTx(tokenAddress, approveData, 0n);
+    await agentClient.waitForTransactionReceipt({ hash: approveTxHash, timeout: 60_000 });
+    console.info("[agentBridge] agent approval confirmed", { approveTxHash });
+  }
+
+  // ── Step 5: CELO balance check ───────────────────────────────────────────────
+  if (value > 0n) {
+    const agentCelo = await agentClient.getBalance({ address: agentAddress });
+    if (agentCelo < value) {
+      await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
+      throw new Error(
+        `Agent wallet has insufficient CELO for relay fee. ` +
+        `Needs ${formatEther(value)} CELO, has ${formatEther(agentCelo)} CELO. ` +
+        `Top up the agent wallet at ${agentAddress}.`,
+      );
+    }
+  }
+
+  // ── Step 6: simulate then execute ───────────────────────────────────────────
+  try {
+    await agentClient.call({ account: agentAddress, to: tx.to, data: tx.data, value });
   } catch (simErr: unknown) {
     const e = simErr as Record<string, unknown>;
-    const simMsg = e instanceof Error ? e.message : String(simErr);
-    const revertData = (e?.data as string) || (e?.cause as Record<string, unknown>)?.data as string || "";
+    const simMsg = e instanceof Error ? (e as Error).message : String(simErr);
+    const revertData = (e?.data as string) || "";
     console.error("[agentBridge] simulation reverted", {
       tool:       final.tool,
       to:         tx.to,
       value:      formatEther(value),
-      dataPrefix: tx.data.slice(0, 66),
       error:      simMsg,
-      revertData,
-      cause:      String((e?.cause as Error)?.message ?? ""),
+      revertData: revertData.slice(0, 64),
     });
-    throw new Error(`Bridge simulation failed (${final.tool}): ${simMsg}${revertData ? ` [data: ${revertData.slice(0, 20)}...]` : ""}`);
+    await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
+    throw new Error(`Bridge simulation failed (${final.tool}): ${simMsg}`);
   }
 
   let txHash: `0x${string}`;
   try {
     txHash = await agentSendTx(tx.to, tx.data, value);
   } catch (err) {
-    console.error("[agentBridge] agentSendTx failed", {
-      tool:       final.tool,
-      to:         tx.to,
-      value:      formatEther(value),
-      dataPrefix: tx.data.slice(0, 66),
-      error:      err instanceof Error ? err.message : String(err),
+    console.error("[agentBridge] bridge tx failed", {
+      error: err instanceof Error ? err.message : String(err),
     });
+    await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
     throw err;
   }
 
-  return {
-    txHash,
-    approvalAddress,
-    platformFeeUSD: final.platformFeeUSD,
-  };
+  console.info("[agentBridge] bridge tx submitted", { txHash });
+  return { txHash, approvalAddress, platformFeeUSD: final.platformFeeUSD };
 }

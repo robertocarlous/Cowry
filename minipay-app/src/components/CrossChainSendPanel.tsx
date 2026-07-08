@@ -11,6 +11,9 @@ import type { ChainInfo, BridgeQuoteResult } from "@/lib/types";
 
 const CELO_CHAIN_ID = 42220;
 
+/** CowryPay contract — same address as GrantAccessScreen. Agent uses payOnBehalf to pull user's USDC. */
+const COWRYPAY_ADDRESS = "0xf253dde47ca717737be3aefb76326180c2239e04" as const;
+
 const fieldClass =
   "w-full bg-cowry-card border border-cowry-border rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-cowry-green/50 transition-colors appearance-none";
 
@@ -188,19 +191,19 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
         throw new Error(`Insufficient ${selectedSource?.label ?? "token"} balance on Celo.`);
       }
 
-      // One-time approval — user signs once in MiniPay for the LI.FI spender address
-      const spender = (quote.approvalAddress || "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE") as `0x${string}`;
-      const allowance = await readErc20Allowance(token, owner, spender);
+      // Cowry agent pulls USDC via CowryPay.payOnBehalf — user must have approved CowryPay.
+      // This is normally done once during onboarding (Authorize Cowry AI screen).
+      const allowance = await readErc20Allowance(token, owner, COWRYPAY_ADDRESS);
       if (allowance < needed) {
         setStep("approving");
         const approveHash = await sendTransaction({
           to:    token,
-          data:  encodeErc20Approve(token, spender, MAX_UINT256),
+          data:  encodeErc20Approve(token, COWRYPAY_ADDRESS, MAX_UINT256),
           value: "0x0",
         });
         await waitForTransaction(approveHash);
 
-        const allowanceAfter = await readErc20Allowance(token, owner, spender);
+        const allowanceAfter = await readErc20Allowance(token, owner, COWRYPAY_ADDRESS);
         if (allowanceAfter < needed) {
           throw new Error("Approval did not complete. Confirm in MiniPay and try again.");
         }
@@ -424,7 +427,7 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
               <div className="w-12 h-12 rounded-full border-4 border-cowry-mint border-t-transparent animate-spin" />
               <h3 className="text-base font-bold text-white">Approve token access</h3>
               <p className="text-sm text-cowry-muted max-w-xs">
-                Confirm the approval in MiniPay so LI.FI can move your {selectedSource?.label ?? "tokens"} for this send.
+                Confirm the approval in MiniPay so Cowry can move your {selectedSource?.label ?? "tokens"} for this send. This is a one-time step.
               </p>
             </div>
           ) : step === "executing" ? (
