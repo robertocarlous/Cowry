@@ -60,3 +60,17 @@ export async function readErc20Balance(
   });
   return ethCall(token, data);
 }
+
+export async function readNativeBalance(owner: `0x${string}`): Promise<bigint> {
+  try {
+    const provider = requireProvider();
+    const result = await provider.request({
+      method: "eth_getBalance",
+      params: [owner, "latest"],
+    }) as string;
+    return decodeUint256(result);
+  } catch {
+    const client = getPublicClient();
+    return client.getBalance({ address: owner });
+  }
+}

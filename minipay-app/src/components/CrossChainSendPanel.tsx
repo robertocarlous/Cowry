@@ -2,10 +2,13 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { isAddress } from "viem";
-import { getBridgeChains, getBridgeQuote, getBridgeStatus } from "@/lib/agent";
+import { getBridgeChains, getBridgeQuote, getBridgeStatus, executeBridgeSend } from "@/lib/agent";
 import { formatBridgeSignError } from "@/lib/bridgeErrors";
 import { encodeErc20Approve, MAX_UINT256, readErc20Allowance, readErc20Balance } from "@/lib/erc20";
 import { sendTransaction, shortAddress, waitForTransaction } from "@/lib/wallet";
+
+/** Canonical LI.FI Diamond — approve this once and the agent handles all bridge txs. */
+const LIFI_DIAMOND = "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE" as const;
 import type { ChainInfo, BridgeQuoteResult } from "@/lib/types";
 
 const CELO_CHAIN_ID = 42220;
@@ -85,7 +88,7 @@ interface Props {
   onSuccess:     (msg: string) => void;
 }
 
-type Step = "form" | "quote" | "approving" | "signing" | "polling" | "done" | "error";
+type Step = "form" | "quote" | "approving" | "executing" | "polling" | "done" | "error";
 
 function celoSourceTokens(celo: ChainInfo): { label: string; value: string; decimals: number }[] {
   const opts: { label: string; value: string; decimals: number }[] = [];
@@ -171,65 +174,48 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
     }
   };
 
-  const handleSign = async () => {
+  const handleExecute = async () => {
     if (!quote || !amount || !fromToken || !toChain?.usdc || !recipientValid) return;
     setError("");
     try {
       const decimals = selectedSource?.decimals ?? 6;
       const fromAmount = String(Math.round(Number(amount) * 10 ** decimals));
+      const token  = fromToken as `0x${string}`;
+      const owner  = walletAddress as `0x${string}`;
+      const needed = BigInt(fromAmount);
 
-      // Fresh quote — stale calldata often reverts with TransferFromFailed.
-      const fresh = await getBridgeQuote({
-        fromChainId:      CELO_CHAIN_ID,
-        fromTokenAddress: fromToken,
-        fromAmount,
-        fromAddress:      walletAddress,
-        toChainId,
-        toTokenAddress:   toChain.usdc,
-        toAddress:        recipient as `0x${string}`,
-      });
-      setQuote(fresh);
-
-      const token = fresh.fromTokenAddress as `0x${string}`;
-      const spender = (fresh.approvalAddress || fresh.transactionRequest.to) as `0x${string}`;
-      const needed = BigInt(fresh.fromAmount);
-      const owner = walletAddress as `0x${string}`;
-
+      // Balance check
       const balance = await readErc20Balance(token, owner);
       if (balance < needed) {
-        throw new Error(
-          `Insufficient ${selectedSource?.label ?? "token"} balance on Celo for this send.`,
-        );
+        throw new Error(`Insufficient ${selectedSource?.label ?? "token"} balance on Celo.`);
       }
 
-      let needsApproval = fresh.preflight?.needsApproval ?? true;
-      if (!fresh.preflight) {
-        const allowance = await readErc20Allowance(token, owner, spender);
-        needsApproval = allowance < needed;
-      }
-
-      if (needsApproval) {
+      // One-time LI.FI Diamond approval — user signs once in MiniPay, never again
+      const allowance = await readErc20Allowance(token, owner, LIFI_DIAMOND);
+      if (allowance < needed) {
         setStep("approving");
         const approveHash = await sendTransaction({
           to:    token,
-          data:  encodeErc20Approve(token, spender, MAX_UINT256),
+          data:  encodeErc20Approve(token, LIFI_DIAMOND, MAX_UINT256),
           value: "0x0",
         });
         await waitForTransaction(approveHash);
 
-        const allowanceAfter = await readErc20Allowance(token, owner, spender);
+        const allowanceAfter = await readErc20Allowance(token, owner, LIFI_DIAMOND);
         if (allowanceAfter < needed) {
-          throw new Error(
-            "Token approval did not complete. Confirm the approval in MiniPay, then try again.",
-          );
+          throw new Error("Approval did not complete. Confirm in MiniPay and try again.");
         }
       }
 
-      setStep("signing");
-      const hash = await sendTransaction({
-        to:    fresh.transactionRequest.to,
-        data:  fresh.transactionRequest.data,
-        value: fresh.transactionRequest.value,
+      // Agent executes the bridge — no CELO needed from the user
+      setStep("executing");
+      const { txHash: hash } = await executeBridgeSend({
+        fromTokenAddress: fromToken,
+        fromAmount,
+        fromWallet:       walletAddress,
+        toChainId,
+        toTokenAddress:   toChain.usdc,
+        toAddress:        recipient,
       });
       setTxHash(hash);
       setStep("polling");
@@ -427,9 +413,7 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
                         {quote.summary}
                       </p>
                       <p className="text-[10px] text-cowry-muted border-t border-cowry-border/50 pt-2">
-                        {quote.preflight?.needsApproval !== false
-                          ? "You will sign twice: token approval, then the cross-chain send."
-                          : "Confirm the send in MiniPay when prompted."}
+                        Cowry executes this send — no CELO needed. You may sign a one-time token approval in MiniPay if this is your first cross-chain send.
                       </p>
                     </div>
                   )}
@@ -444,12 +428,12 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
                 Confirm the approval in MiniPay so LI.FI can move your {selectedSource?.label ?? "tokens"} for this send.
               </p>
             </div>
-          ) : step === "signing" ? (
+          ) : step === "executing" ? (
             <div className="flex flex-col items-center py-12 text-center space-y-4">
-              <div className="w-12 h-12 rounded-full border-4 border-cowry-purple border-t-transparent animate-spin" />
-              <h3 className="text-base font-bold text-white">Check your wallet</h3>
+              <div className="w-12 h-12 rounded-full border-4 border-cowry-green border-t-transparent animate-spin" />
+              <h3 className="text-base font-bold text-white">Submitting send…</h3>
               <p className="text-sm text-cowry-muted max-w-xs">
-                Confirm the cross-chain send in MiniPay (transaction on Celo)
+                Cowry is executing your cross-chain send. No wallet confirmation needed.
               </p>
             </div>
           ) : step === "polling" ? (
@@ -494,7 +478,7 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
         {(step === "form" || step === "quote") && !chainsLoading && (
           <div className="flex-shrink-0 px-4 pb-6 pt-2 border-t border-cowry-border">
             <button
-              onClick={quote ? handleSign : handleGetQuote}
+              onClick={quote ? handleExecute : handleGetQuote}
               disabled={(step === "quote" && !quote) || !amount || !fromToken || !toChain?.usdc || !recipientValid}
               className="w-full py-3.5 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2
                 disabled:opacity-40 disabled:cursor-not-allowed
@@ -503,8 +487,8 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
               {step === "quote" && !quote
                 ? "Getting quote…"
                 : quote
-                  ? "Continue in wallet"
-                  : "Continue"}
+                  ? "Confirm send"
+                  : "Get quote"}
               {!(step === "quote" && !quote) && (
                 <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2">
                   <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />

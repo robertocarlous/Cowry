@@ -19,11 +19,16 @@ function formatDuration(totalSec: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-const SUGGESTIONS = [
-  { text: "Send $20 to mobile money in Kenya", icon: "/Vector.png" },
-  { text: "What's my balance", icon: "/Vector%201.png" },
-  { text: "Send $50 to a bank account in Nigeria", icon: "/Vector.png" },
-  { text: "Show my recent transactions", icon: "/Group%209.png" },
+type Suggestion =
+  | { kind: "text"; text: string; icon: string }
+  | { kind: "action"; text: string; icon: string; action: "cross-chain" | "tx-history" };
+
+const SUGGESTIONS: Suggestion[] = [
+  { kind: "text",   text: "Send $20 to mobile money in Kenya",   icon: "/Vector.png" },
+  { kind: "text",   text: "What's my balance",                   icon: "/Vector%201.png" },
+  { kind: "action", text: "Cross-chain send",                    icon: "/Vector%202.png", action: "cross-chain" },
+  { kind: "text",   text: "Send $50 to a bank account in Nigeria", icon: "/Vector.png" },
+  { kind: "action", text: "Transaction History",                 icon: "/Group%209.png", action: "tx-history" },
 ];
 
 export function ChatInterface() {
@@ -184,7 +189,15 @@ export function ChatInterface() {
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s.text}
-                  onClick={() => { setInput(s.text); inputRef.current?.focus(); }}
+                  onClick={() => {
+                    if (s.kind === "action") {
+                      if (s.action === "cross-chain") setShowCrossChainSend(true);
+                      else if (s.action === "tx-history") setShowTxHistory(true);
+                    } else {
+                      setInput(s.text);
+                      inputRef.current?.focus();
+                    }
+                  }}
                   className="flex items-center gap-3 text-left text-sm bg-cowry-card border border-cowry-green/30 hover:border-cowry-green/70 text-gray-300 hover:text-white pl-2 pr-4 py-2 rounded-full transition-all"
                 >
                   <span className="flex items-center justify-center w-8 h-8 rounded-full border border-cowry-green/40 flex-shrink-0">

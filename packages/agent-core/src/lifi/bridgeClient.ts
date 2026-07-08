@@ -15,8 +15,8 @@ import { CELO_USDM_ADDRESS, CELO_USDC_ADDRESS } from "./celoTokens.js";
 
 const LIFI_BASE  = "https://li.quest/v1";
 const INTEGRATOR = process.env.LIFI_INTEGRATOR?.trim() || "cowry";
-/** Cowry platform fee on every bridge, as a decimal (0.003 = 0.3%). */
-const BRIDGE_FEE = "0.003";
+/** Base platform revenue fee (0.3%). Execution relay cost is added dynamically on top. */
+const BASE_PLATFORM_FEE = 0.003;
 
 export const CELO_CHAIN_ID = 42220;
 
@@ -186,11 +186,8 @@ function chainName(id: number): string {
 
 // ── Quote ─────────────────────────────────────────────────────────────────────
 
-/** Get a bridge quote: Celo USDC/USDm → destination USDC. */
-export async function getBridgeQuote(params: BridgeQuoteParams): Promise<BridgeQuote> {
-  validateCeloOutboundBridge(params);
-  // Do not restrict allowBridges — bridges like Across/Stargate often lack Celo outbound.
-  // LI.FI will pick a working route (e.g. eco) for Celo → other chain USDC/USDm.
+/** Get a single LI.FI quote at the given fee ratio (no dynamic adjustment). */
+function rawBridgeQuote(params: BridgeQuoteParams, feeRatio: number): Promise<BridgeQuote> {
   return lifiGet<BridgeQuote>("/quote", {
     fromChain:    String(params.fromChainId),
     toChain:      String(params.toChainId),
@@ -200,8 +197,39 @@ export async function getBridgeQuote(params: BridgeQuoteParams): Promise<BridgeQ
     fromAddress:  params.fromAddress,
     toAddress:    params.toAddress,
     integrator:   INTEGRATOR,
-    fee:          BRIDGE_FEE,
+    fee:          feeRatio.toFixed(6),
   });
+}
+
+/**
+ * Get a bridge quote with a dynamic fee that covers:
+ *   • 0.3% base platform revenue
+ *   • The agent's CELO relay cost converted to USDC (passed as `relayCostUSD`)
+ *
+ * Pass `relayCostUSD` from a preview quote's gasCosts to get the final quote.
+ * When called without `relayCostUSD` it returns a preview quote at base fee.
+ */
+export async function getBridgeQuote(
+  params: BridgeQuoteParams,
+  relayCostUSD = 0,
+): Promise<BridgeQuote & { platformFeeUSD: number; executionFeeUSD: number }> {
+  validateCeloOutboundBridge(params);
+
+  const fromDecimals = params.fromTokenAddress.toLowerCase() ===
+    CELO_USDM_ADDRESS.toLowerCase() ? 18 : 6;
+  const fromAmountUSD = Number(params.fromAmount) / 10 ** fromDecimals;
+
+  const executionFeeRatio = fromAmountUSD > 0
+    ? Math.min(relayCostUSD / fromAmountUSD, 0.02)  // cap execution add-on at 2%
+    : 0;
+  const totalFeeRatio = BASE_PLATFORM_FEE + executionFeeRatio;
+
+  const quote = await rawBridgeQuote(params, totalFeeRatio);
+  return {
+    ...quote,
+    platformFeeUSD: fromAmountUSD * BASE_PLATFORM_FEE,
+    executionFeeUSD: fromAmountUSD * executionFeeRatio,
+  };
 }
 
 // ── Status polling ────────────────────────────────────────────────────────────
@@ -244,20 +272,26 @@ export async function getBridgeStatus(
 
 // ── Human-readable summary ────────────────────────────────────────────────────
 
-export function formatBridgeSummary(quote: BridgeQuote): string {
-  const from         = quote.action.fromToken;
-  const to           = quote.action.toToken;
-  const sentHuman    = (Number(quote.estimate.fromAmount)  / 10 ** from.decimals).toFixed(4);
-  const receivedMin  = (Number(quote.estimate.toAmountMin) / 10 ** to.decimals).toFixed(4);
-  const durationMin  = Math.ceil(quote.estimate.executionDuration / 60);
-  const feeUsd       = quote.estimate.feeCosts.reduce((s, f) => s + Number(f.amountUSD), 0).toFixed(2);
-  const gasUsd       = quote.estimate.gasCosts.reduce((s, g) => s + Number(g.amountUSD), 0).toFixed(2);
+export function formatBridgeSummary(
+  quote: BridgeQuote & { platformFeeUSD?: number; executionFeeUSD?: number },
+): string {
+  const from        = quote.action.fromToken;
+  const to          = quote.action.toToken;
+  const sentHuman   = (Number(quote.estimate.fromAmount) / 10 ** from.decimals).toFixed(4);
+  const receivedMin = (Number(quote.estimate.toAmountMin) / 10 ** to.decimals).toFixed(4);
+  const durationMin = Math.ceil(quote.estimate.executionDuration / 60);
+  const platformFee = (quote.platformFeeUSD ?? 0).toFixed(3);
+  const execFee     = (quote.executionFeeUSD ?? 0).toFixed(3);
 
-  return [
+  const lines = [
     `Cross-chain send via ${quote.tool}`,
-    `• You send:    ${sentHuman} ${from.symbol} on Celo`,
+    `• You send:       ${sentHuman} ${from.symbol} on Celo`,
     `• Recipient gets: ≥${receivedMin} USDC on ${chainName(quote.action.toChainId)}`,
-    `• Fee:      $${feeUsd}  |  Gas: $${gasUsd}`,
-    `• Est. time: ~${durationMin} min`,
-  ].join("\n");
+    `• Platform fee:   $${platformFee}  |  Execution fee: $${execFee}`,
+    `• Est. time:      ~${durationMin} min`,
+  ];
+  if (Number(execFee) > 0) {
+    lines.push(`  (Execution fee covers the agent's relay cost — no CELO needed from you)`);
+  }
+  return lines.join("\n");
 }

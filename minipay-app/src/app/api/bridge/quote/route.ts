@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const quote = await getBridgeQuote({
+    const params = {
       fromChainId:      Number(fromChainId),
       fromTokenAddress: String(fromTokenAddress),
       fromAmount:       String(fromAmount),
@@ -63,9 +63,16 @@ export async function POST(req: NextRequest) {
       toChainId:        Number(toChainId),
       toTokenAddress:   String(toTokenAddress),
       toAddress:        toAddress as `0x${string}`,
-    });
-    const approvalAddress =
-      quote.estimate.approvalAddress ?? quote.transactionRequest.to;
+    };
+
+    // Preview at base fee to discover relay cost, then final quote with adjusted fee
+    const preview = await getBridgeQuote(params, 0);
+    const relayCostUSD = preview.estimate.gasCosts.reduce(
+      (s, g) => s + Number(g.amountUSD), 0,
+    );
+    const quote = await getBridgeQuote(params, relayCostUSD);
+
+    const approvalAddress = quote.estimate.approvalAddress ?? quote.transactionRequest.to;
 
     let preflight: { needsApproval: boolean; sufficientBalance: boolean } | undefined;
     try {
@@ -76,7 +83,7 @@ export async function POST(req: NextRequest) {
         BigInt(String(fromAmount)),
       );
     } catch {
-      // Client will re-check via wallet RPC before signing.
+      // Client will re-check via wallet RPC before executing.
     }
 
     return NextResponse.json({
@@ -86,6 +93,8 @@ export async function POST(req: NextRequest) {
       fromTokenAddress:   String(fromTokenAddress),
       fromAmount:         String(fromAmount),
       approvalAddress,
+      platformFeeUSD:     quote.platformFeeUSD,
+      executionFeeUSD:    quote.executionFeeUSD,
       preflight,
       transactionRequest: quote.transactionRequest,
       estimate:           quote.estimate,

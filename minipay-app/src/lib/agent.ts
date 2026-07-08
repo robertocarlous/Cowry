@@ -73,6 +73,18 @@ export function getBridgeStatus(
   );
 }
 
+/** Agent executes the bridge tx — user never needs CELO. */
+export function executeBridgeSend(params: {
+  fromTokenAddress: string;
+  fromAmount:       string;
+  fromWallet:       string;
+  toChainId:        number;
+  toTokenAddress:   string;
+  toAddress:        string;
+}): Promise<{ txHash: string; explorerUrl: string }> {
+  return post("/bridge/execute", params);
+}
+
 // ── Voice notes (speech → text) ─────────────────────────────────────────────
 
 export async function transcribeAudio(blob: Blob, signal?: AbortSignal): Promise<string> {
