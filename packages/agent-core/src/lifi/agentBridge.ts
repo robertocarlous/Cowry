@@ -19,20 +19,21 @@ function rpcUrl() {
 }
 
 /**
- * Check whether the user has approved the LI.FI Diamond to spend at least
- * `needed` units of `token`. Used as a pre-flight check before execution.
+ * Check whether the user has approved `spender` to spend at least `needed`
+ * units of `token`. Defaults to LIFI_DIAMOND if no spender is provided.
  */
 export async function checkLifiApproval(
   token: `0x${string}`,
   owner: `0x${string}`,
   needed: bigint,
+  spender: `0x${string}` = LIFI_DIAMOND,
 ): Promise<boolean> {
   const client = createPublicClient({ chain: celo, transport: http(rpcUrl()) });
   const allowance = await client.readContract({
     address: token,
     abi: erc20Abi,
     functionName: "allowance",
-    args: [owner, LIFI_DIAMOND],
+    args: [owner, spender],
   });
   return allowance >= needed;
 }
@@ -41,7 +42,6 @@ export type ExecuteBridgeResult = {
   txHash: `0x${string}`;
   approvalAddress: string;
   platformFeeUSD: number;
-  executionFeeUSD: number;
 };
 
 /**
@@ -68,11 +68,13 @@ export async function executeBridgeForUser(
   const final = await getBridgeQuote(params, relayCostUSD);
   const tx = final.transactionRequest;
   const value = BigInt(tx.value || "0");
+  const approvalAddress = (final.estimate.approvalAddress ?? LIFI_DIAMOND) as `0x${string}`;
 
   const approved = await checkLifiApproval(
     params.fromTokenAddress as `0x${string}`,
     params.fromAddress,
     BigInt(params.fromAmount),
+    approvalAddress,
   );
   if (!approved) {
     throw new Error(
@@ -84,8 +86,7 @@ export async function executeBridgeForUser(
   const txHash = await agentSendTx(tx.to, tx.data, value);
   return {
     txHash,
-    approvalAddress: final.estimate.approvalAddress ?? LIFI_DIAMOND,
+    approvalAddress,
     platformFeeUSD: final.platformFeeUSD,
-    executionFeeUSD: final.executionFeeUSD,
   };
 }

@@ -22,8 +22,12 @@ Examples:
 - "I want to top up with Naira" → {"kind":"onramp","action":"BUY_CRYPTO","countryHint":"Nigeria"}
 - "Send $50 to a bank account in Tanzania" → {"kind":"remittance","action":"SEND_REMITTANCE","amount":50,"countryHint":"Tanzania"}
 - "Send $20 to mobile money in Kenya, 0712345678" → {"kind":"remittance","action":"SEND_REMITTANCE","amount":20,"countryHint":"Kenya","accountIdentifier":"0712345678"}
+- "Send $5 to 9122824503 opay Nigeria" → {"kind":"remittance","action":"SEND_REMITTANCE","amount":5,"countryHint":"Nigeria","institutionHint":"opay","accountIdentifier":"9122824503"}
+- "Send 20 to 0801234567 GTBank" → {"kind":"remittance","action":"SEND_REMITTANCE","amount":20,"institutionHint":"GTBank","accountIdentifier":"0801234567"}
 - "Send 20 USDC to @ada" → {"kind":"admin","action":"CHAT"}  (an @username alone is not a remittance recipient)
 - "Send 50 USDT to a bank account in Nigeria" → {"kind":"remittance","action":"SEND_REMITTANCE","amount":50,"countryHint":"Nigeria","token":"USDT"}
+
+IMPORTANT: When the user gives the account number, bank name, and country all in one message, extract ALL of them at once — do not omit any field you can clearly identify.
 
 Rules: amounts are numbers (user may say dollars or $). If a message describes sending money to a person but doesn't fit remittance, classify it as "admin"/"CHAT" rather than inventing an unsupported intent.`;
 

@@ -127,8 +127,10 @@ export type BridgeQuoteResult = {
   summary: string;
   fromTokenAddress: string;
   fromAmount: string;
-  /** LI.FI spender — approve this before signing the bridge tx */
+  /** LI.FI spender — approve this before the agent executes the bridge tx */
   approvalAddress: string;
+  /** Total platform fee in USD (includes relay cost) */
+  platformFeeUSD?: number;
   preflight?: {
     needsApproval: boolean;
     sufficientBalance: boolean;

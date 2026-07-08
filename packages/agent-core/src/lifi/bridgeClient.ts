@@ -208,11 +208,13 @@ function rawBridgeQuote(params: BridgeQuoteParams, feeRatio: number): Promise<Br
  *
  * Pass `relayCostUSD` from a preview quote's gasCosts to get the final quote.
  * When called without `relayCostUSD` it returns a preview quote at base fee.
+ *
+ * `platformFeeUSD` is the combined total fee (platform + relay) shown to the user.
  */
 export async function getBridgeQuote(
   params: BridgeQuoteParams,
   relayCostUSD = 0,
-): Promise<BridgeQuote & { platformFeeUSD: number; executionFeeUSD: number }> {
+): Promise<BridgeQuote & { platformFeeUSD: number }> {
   validateCeloOutboundBridge(params);
 
   const fromDecimals = params.fromTokenAddress.toLowerCase() ===
@@ -220,15 +222,14 @@ export async function getBridgeQuote(
   const fromAmountUSD = Number(params.fromAmount) / 10 ** fromDecimals;
 
   const executionFeeRatio = fromAmountUSD > 0
-    ? Math.min(relayCostUSD / fromAmountUSD, 0.02)  // cap execution add-on at 2%
+    ? Math.min(relayCostUSD / fromAmountUSD, 0.02)
     : 0;
   const totalFeeRatio = BASE_PLATFORM_FEE + executionFeeRatio;
 
   const quote = await rawBridgeQuote(params, totalFeeRatio);
   return {
     ...quote,
-    platformFeeUSD: fromAmountUSD * BASE_PLATFORM_FEE,
-    executionFeeUSD: fromAmountUSD * executionFeeRatio,
+    platformFeeUSD: fromAmountUSD * totalFeeRatio,
   };
 }
 
@@ -273,7 +274,7 @@ export async function getBridgeStatus(
 // ── Human-readable summary ────────────────────────────────────────────────────
 
 export function formatBridgeSummary(
-  quote: BridgeQuote & { platformFeeUSD?: number; executionFeeUSD?: number },
+  quote: BridgeQuote & { platformFeeUSD?: number },
 ): string {
   const from        = quote.action.fromToken;
   const to          = quote.action.toToken;
@@ -281,17 +282,13 @@ export function formatBridgeSummary(
   const receivedMin = (Number(quote.estimate.toAmountMin) / 10 ** to.decimals).toFixed(4);
   const durationMin = Math.ceil(quote.estimate.executionDuration / 60);
   const platformFee = (quote.platformFeeUSD ?? 0).toFixed(3);
-  const execFee     = (quote.executionFeeUSD ?? 0).toFixed(3);
 
-  const lines = [
+  return [
     `Cross-chain send via ${quote.tool}`,
     `• You send:       ${sentHuman} ${from.symbol} on Celo`,
     `• Recipient gets: ≥${receivedMin} USDC on ${chainName(quote.action.toChainId)}`,
-    `• Platform fee:   $${platformFee}  |  Execution fee: $${execFee}`,
+    `• Platform fee:   $${platformFee}`,
     `• Est. time:      ~${durationMin} min`,
-  ];
-  if (Number(execFee) > 0) {
-    lines.push(`  (Execution fee covers the agent's relay cost — no CELO needed from you)`);
-  }
-  return lines.join("\n");
+    `  (No CELO needed — Cowry covers the relay cost)`,
+  ].join("\n");
 }

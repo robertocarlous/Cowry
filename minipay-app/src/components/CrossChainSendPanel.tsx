@@ -7,8 +7,6 @@ import { formatBridgeSignError } from "@/lib/bridgeErrors";
 import { encodeErc20Approve, MAX_UINT256, readErc20Allowance, readErc20Balance } from "@/lib/erc20";
 import { sendTransaction, shortAddress, waitForTransaction } from "@/lib/wallet";
 
-/** Canonical LI.FI Diamond — approve this once and the agent handles all bridge txs. */
-const LIFI_DIAMOND = "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE" as const;
 import type { ChainInfo, BridgeQuoteResult } from "@/lib/types";
 
 const CELO_CHAIN_ID = 42220;
@@ -190,18 +188,19 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
         throw new Error(`Insufficient ${selectedSource?.label ?? "token"} balance on Celo.`);
       }
 
-      // One-time LI.FI Diamond approval — user signs once in MiniPay, never again
-      const allowance = await readErc20Allowance(token, owner, LIFI_DIAMOND);
+      // One-time approval — user signs once in MiniPay for the LI.FI spender address
+      const spender = (quote.approvalAddress || "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE") as `0x${string}`;
+      const allowance = await readErc20Allowance(token, owner, spender);
       if (allowance < needed) {
         setStep("approving");
         const approveHash = await sendTransaction({
           to:    token,
-          data:  encodeErc20Approve(token, LIFI_DIAMOND, MAX_UINT256),
+          data:  encodeErc20Approve(token, spender, MAX_UINT256),
           value: "0x0",
         });
         await waitForTransaction(approveHash);
 
-        const allowanceAfter = await readErc20Allowance(token, owner, LIFI_DIAMOND);
+        const allowanceAfter = await readErc20Allowance(token, owner, spender);
         if (allowanceAfter < needed) {
           throw new Error("Approval did not complete. Confirm in MiniPay and try again.");
         }

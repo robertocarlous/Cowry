@@ -107,12 +107,24 @@ function levenshtein(a: string, b: string): number {
 
 /**
  * Find the best matches for `query` among `institutions`. Tries, in order:
- * substring (either direction), acronym/abbreviation, then typo-tolerant
- * fuzzy matching. Returns an empty array if nothing is close enough — the
- * caller should fall back to showing the full institution list.
+ * exact name, alias, substring (either direction), acronym/abbreviation, then
+ * typo-tolerant fuzzy matching. Returns an empty array if nothing is close
+ * enough — the caller should fall back to showing the full institution list.
  */
 export function findInstitutionMatches(query: string, institutions: Institution[]): Institution[] {
   const aliasKey = rawNormalize(query);
+
+  // ── 0. Exact normalized name match — highest priority, always wins outright ──
+  // This covers "opay" → "OPay", "gtbank" → "GTBank", etc. regardless of case.
+  const exactRaw = institutions.filter((inst) => rawNormalize(inst.name) === aliasKey);
+  if (exactRaw.length > 0) return exactRaw;
+
+  const qSub = normalizeForSubstring(query);
+
+  const exactSub = institutions.filter((inst) => normalizeForSubstring(inst.name) === qSub);
+  if (exactSub.length > 0) return exactSub;
+
+  // ── 1. Alias lookup ──────────────────────────────────────────────────────────
   const aliasKeywords = ALIASES[aliasKey];
   if (aliasKeywords) {
     const aliasMatches = institutions.filter((inst) => {
@@ -122,15 +134,25 @@ export function findInstitutionMatches(query: string, institutions: Institution[
     if (aliasMatches.length > 0) return aliasMatches;
   }
 
-  const qSub = normalizeForSubstring(query);
   if (!qSub) return [];
 
-  if (qSub.length >= 3) {
+  // ── 2. Substring match — institution name contains query or vice-versa ────────
+  // Only use bidirectional substring when the query is long enough (≥ 4 chars)
+  // to avoid false positives from short fragments matching inside long names.
+  if (qSub.length >= 4) {
     const substringMatches = institutions.filter((inst) => {
       const iSub = normalizeForSubstring(inst.name);
       return iSub.length >= 3 && (iSub.includes(qSub) || qSub.includes(iSub));
     });
     if (substringMatches.length > 0) return substringMatches;
+  } else if (qSub.length >= 3) {
+    // For short queries (3 chars) only match if the institution name starts with
+    // the query — prevents "uba" matching "Arab" or similar accidental substrings.
+    const prefixMatches = institutions.filter((inst) => {
+      const iSub = normalizeForSubstring(inst.name);
+      return iSub.length >= 3 && iSub.startsWith(qSub);
+    });
+    if (prefixMatches.length > 0) return prefixMatches;
   }
 
   if (qSub.length >= 2) {

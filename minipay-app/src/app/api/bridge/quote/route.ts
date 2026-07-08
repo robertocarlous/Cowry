@@ -94,7 +94,6 @@ export async function POST(req: NextRequest) {
       fromAmount:         String(fromAmount),
       approvalAddress,
       platformFeeUSD:     quote.platformFeeUSD,
-      executionFeeUSD:    quote.executionFeeUSD,
       preflight,
       transactionRequest: quote.transactionRequest,
       estimate:           quote.estimate,
