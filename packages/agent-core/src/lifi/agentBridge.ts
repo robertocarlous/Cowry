@@ -182,31 +182,10 @@ export async function executeBridgeForUser(
     }
   }
 
-  // ── Step 6: simulate at the approve block so stale-RPC can't cause false reverts ─
-  try {
-    await agentClient.call({
-      account:     agentAddress,
-      to:          tx.to,
-      data:        tx.data,
-      value,
-      blockNumber: approveReceipt.blockNumber,
-    });
-  } catch (simErr: unknown) {
-    const e = simErr as Record<string, unknown>;
-    const simMsg = e instanceof Error ? (e as Error).message : String(simErr);
-    const revertData = (e?.data as string) || "";
-    console.error("[agentBridge] simulation reverted", {
-      tool:        final.tool,
-      to:          tx.to,
-      value:       formatEther(value),
-      block:       approveReceipt.blockNumber.toString(),
-      error:       simMsg,
-      revertData:  revertData.slice(0, 64),
-    });
-    await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
-    throw new Error(`Bridge simulation failed (${final.tool}): ${simMsg}`);
-  }
-
+  // ── Step 6: execute ─────────────────────────────────────────────────────────
+  // All prerequisites confirmed: agent owns USDC, LI.FI spender approved.
+  // Skip simulation — forno.celo.org is not an archive node and rejects eth_call
+  // at historical block numbers. On-chain revert is handled by the catch below.
   let txHash: `0x${string}`;
   try {
     txHash = await agentSendTx(tx.to, tx.data, value);
