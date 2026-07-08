@@ -146,33 +146,28 @@ export async function executeBridgeForUser(
   const value = BigInt(tx.value || "0");
   const approvalAddress = (final.estimate.approvalAddress ?? LIFI_DIAMOND) as `0x${string}`;
 
-  // ── Step 4: ensure agent has approved the LI.FI spender ─────────────────────
-  const agentAllowance = await agentClient.readContract({
-    address: tokenAddress,
-    abi: erc20Abi,
-    functionName: "allowance",
-    args: [agentAddress, approvalAddress],
-  });
-
-  console.info("[agentBridge] agent pre-bridge", {
-    tool:           final.tool,
+  // ── Step 4: agent self-approves the LI.FI spender ──────────────────────────
+  // Always approve unconditionally — avoids RPC stale-state race conditions.
+  // Celo USDC keeps MAX_UINT256 as-is after each transferFrom, so this is nearly
+  // a no-op on subsequent sends, but the first run always needs it.
+  console.info("[agentBridge] agent self-approving LI.FI spender", {
+    tool: final.tool,
     approvalAddress,
-    agentAllowance: agentAllowance.toString(),
-    fromAmount:     fromAmount.toString(),
-    relayValue:     formatEther(value),
+    fromAmount: fromAmount.toString(),
+    relayValue: formatEther(value),
   });
-
-  if (agentAllowance < fromAmount) {
-    console.info("[agentBridge] agent self-approving LI.FI spender", { approvalAddress });
-    const approveData = encodeFunctionData({
-      abi: erc20Abi,
-      functionName: "approve",
-      args: [approvalAddress, 2n ** 256n - 1n],
-    });
-    const approveTxHash = await agentSendTx(tokenAddress, approveData, 0n);
-    await agentClient.waitForTransactionReceipt({ hash: approveTxHash, timeout: 60_000 });
-    console.info("[agentBridge] agent approval confirmed", { approveTxHash });
+  const approveData = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "approve",
+    args: [approvalAddress, 2n ** 256n - 1n],
+  });
+  const approveTxHash = await agentSendTx(tokenAddress, approveData, 0n);
+  const approveReceipt = await agentClient.waitForTransactionReceipt({ hash: approveTxHash, timeout: 60_000 });
+  if (approveReceipt.status !== "success") {
+    await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
+    throw new Error(`Agent USDC approval failed on-chain (status: ${approveReceipt.status}). Hash: ${approveTxHash}`);
   }
+  console.info("[agentBridge] agent approval confirmed", { approveTxHash, block: approveReceipt.blockNumber.toString() });
 
   // ── Step 5: CELO balance check ───────────────────────────────────────────────
   if (value > 0n) {
@@ -187,19 +182,26 @@ export async function executeBridgeForUser(
     }
   }
 
-  // ── Step 6: simulate then execute ───────────────────────────────────────────
+  // ── Step 6: simulate at the approve block so stale-RPC can't cause false reverts ─
   try {
-    await agentClient.call({ account: agentAddress, to: tx.to, data: tx.data, value });
+    await agentClient.call({
+      account:     agentAddress,
+      to:          tx.to,
+      data:        tx.data,
+      value,
+      blockNumber: approveReceipt.blockNumber,
+    });
   } catch (simErr: unknown) {
     const e = simErr as Record<string, unknown>;
     const simMsg = e instanceof Error ? (e as Error).message : String(simErr);
     const revertData = (e?.data as string) || "";
     console.error("[agentBridge] simulation reverted", {
-      tool:       final.tool,
-      to:         tx.to,
-      value:      formatEther(value),
-      error:      simMsg,
-      revertData: revertData.slice(0, 64),
+      tool:        final.tool,
+      to:          tx.to,
+      value:       formatEther(value),
+      block:       approveReceipt.blockNumber.toString(),
+      error:       simMsg,
+      revertData:  revertData.slice(0, 64),
     });
     await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
     throw new Error(`Bridge simulation failed (${final.tool}): ${simMsg}`);
