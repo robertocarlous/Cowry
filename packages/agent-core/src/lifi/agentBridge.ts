@@ -2,14 +2,16 @@
  * Agent-executed cross-chain bridge.
  *
  * Flow:
- *  1. Verify user has enough USDC and CowryPay allowance.
- *  2. Pull USDC from user → agent wallet via CowryPay.payOnBehalf.
- *     (User already approved CowryPay in the GrantAccessScreen onboarding step.)
- *  3. Get LI.FI quote with fromAddress = agentWallet so msg.sender == fromAddress.
- *  4. Agent self-approves the LI.FI spender for its own USDC if needed.
- *  5. Agent broadcasts the bridge tx and pays any CELO relay fee from its balance.
+ *  1. Verify user balance and CowryPay allowance.
+ *  2. Pre-discover relay cost (preview quote) and verify route exists.
+ *  3. Pull USDC from user → agent via CowryPay.payOnBehalf (wait for receipt).
+ *  4. Agent pre-approves LI.FI Diamond for MAX USDC (wait for receipt).
+ *  5. Get a FRESH final quote — immediately before execution to avoid Squid
+ *     permit expiry (Squid includes a time-sensitive payload in calldata).
+ *  6. Execute the fresh bridge tx.
  *
- * If steps 3-5 fail after the USDC pull, we attempt to refund the user.
+ * Pull+approve happen first so the fresh quote age is ~2s at execution time.
+ * If any step after the pull fails, we attempt to refund the user's USDC.
  */
 
 import {
@@ -48,7 +50,7 @@ async function refundUser(
     address: token,
     abi: erc20Abi,
     functionName: "balanceOf",
-    args: [(getAgentWallet().address)],
+    args: [getAgentWallet().address],
   });
   const refundAmount = agentBal < amount ? agentBal : amount;
   if (refundAmount === 0n) return;
@@ -70,12 +72,6 @@ async function refundUser(
   }
 }
 
-/**
- * Execute a cross-chain bridge send on behalf of a user.
- *
- * `params.fromAddress` must be the user's wallet (token owner / CowryPay approver).
- * The agent wallet acts as the LI.FI `fromAddress` so msg.sender == fromAddress.
- */
 export async function executeBridgeForUser(
   params: BridgeQuoteParams,
 ): Promise<ExecuteBridgeResult> {
@@ -87,31 +83,42 @@ export async function executeBridgeForUser(
 
   // ── Step 1: verify user readiness ───────────────────────────────────────────
   const [userBalance, cowrypayAllowance] = await Promise.all([
-    client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "balanceOf",  args: [userWallet] }),
+    client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "balanceOf", args: [userWallet] }),
     client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "allowance", args: [userWallet, cowrypayContract.address] }),
   ]);
 
   console.info("[agentBridge] user pre-flight", {
     userWallet,
-    fromAmount:         fromAmount.toString(),
-    userBalance:        userBalance.toString(),
-    cowrypayAllowance:  cowrypayAllowance.toString(),
+    fromAmount:        fromAmount.toString(),
+    userBalance:       userBalance.toString(),
+    cowrypayAllowance: cowrypayAllowance.toString(),
   });
 
   if (userBalance < fromAmount) {
-    throw new Error(
-      `Insufficient balance. User has ${userBalance} base units of ${tokenAddress}, needs ${fromAmount}.`,
-    );
+    throw new Error(`Insufficient balance. User has ${userBalance} base units, needs ${fromAmount}.`);
   }
   if (cowrypayAllowance < fromAmount) {
     throw new Error(
-      `Token not approved. The user must approve CowryPay (${cowrypayContract.address}) to spend ` +
-      `at least ${fromAmount} base units. Current allowance: ${cowrypayAllowance}. ` +
-      `This is normally done once in the Authorize Cowry AI screen.`,
+      `Token not approved. The user must approve CowryPay (${cowrypayContract.address}) ` +
+      `to spend at least ${fromAmount} base units. Current allowance: ${cowrypayAllowance}. ` +
+      `This is done once in the Authorize Cowry AI screen.`,
     );
   }
 
-  // ── Step 2: pull USDC from user to agent via CowryPay.payOnBehalf ───────────
+  // ── Step 2: pre-discover relay cost (also verifies a route exists) ───────────
+  // Use agentAddress as fromAddress from the start — the quote calldata is for
+  // the agent wallet, and only the agent wallet will send the tx.
+  const agentParams: BridgeQuoteParams = { ...params, fromAddress: agentAddress };
+  let relayCostUSD = 0;
+  try {
+    const preview = await getBridgeQuote(agentParams, 0);
+    relayCostUSD = preview.estimate.gasCosts.reduce((s, g) => s + Number(g.amountUSD), 0);
+    console.info("[agentBridge] route preview", { tool: preview.tool, relayCostUSD });
+  } catch (routeErr) {
+    throw routeErr; // No pull yet — just propagate
+  }
+
+  // ── Step 3: pull USDC from user to agent via CowryPay.payOnBehalf ────────────
   const pullData = encodeFunctionData({
     abi: cowrypayContract.abi,
     functionName: "payOnBehalf",
@@ -121,21 +128,33 @@ export async function executeBridgeForUser(
   console.info("[agentBridge] pulling USDC from user to agent");
   const pullHash = await agentSendTx(cowrypayContract.address, pullData, 0n);
   console.info("[agentBridge] pull tx sent", { pullHash });
-
-  // Wait for confirmation before proceeding to bridge
   await agentClient.waitForTransactionReceipt({ hash: pullHash, timeout: 60_000 });
   console.info("[agentBridge] pull confirmed");
 
-  // ── Step 3: get LI.FI quotes with agentAddress as fromAddress ───────────────
-  const agentParams: BridgeQuoteParams = { ...params, fromAddress: agentAddress };
+  // ── Step 4: agent pre-approves LI.FI Diamond for its USDC ───────────────────
+  // Approve unconditionally to guarantee state is set; Celo USDC never decrements
+  // MAX_UINT256 allowances, so subsequent runs cost only gas but not state change.
+  // We approve the canonical Diamond address here; if the fresh quote returns a
+  // different approvalAddress we'll approve that too after the quote.
+  const preApproveData = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: "approve",
+    args: [LIFI_DIAMOND, 2n ** 256n - 1n],
+  });
+  console.info("[agentBridge] agent pre-approving LI.FI Diamond");
+  const preApproveTxHash = await agentSendTx(tokenAddress, preApproveData, 0n);
+  const preApproveReceipt = await agentClient.waitForTransactionReceipt({ hash: preApproveTxHash, timeout: 60_000 });
+  if (preApproveReceipt.status !== "success") {
+    await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
+    throw new Error(`Agent USDC approval failed (status: ${preApproveReceipt.status}). Hash: ${preApproveTxHash}`);
+  }
+  console.info("[agentBridge] pre-approve confirmed", { preApproveTxHash });
 
+  // ── Step 5: get a FRESH final quote — right before execution ─────────────────
+  // Pull + approve are done. The fresh quote is at most ~3s old when we execute,
+  // so Squid's time-sensitive permit in the calldata won't expire.
   let final: Awaited<ReturnType<typeof getBridgeQuote>>;
   try {
-    const preview = await getBridgeQuote(agentParams, 0);
-    const relayCostUSD = preview.estimate.gasCosts.reduce(
-      (sum, g) => sum + Number(g.amountUSD),
-      0,
-    );
     final = await getBridgeQuote(agentParams, relayCostUSD);
   } catch (quoteErr) {
     await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
@@ -146,51 +165,39 @@ export async function executeBridgeForUser(
   const value = BigInt(tx.value || "0");
   const approvalAddress = (final.estimate.approvalAddress ?? LIFI_DIAMOND) as `0x${string}`;
 
-  // ── Step 4: agent self-approves the LI.FI spender ──────────────────────────
-  // Always approve unconditionally — avoids RPC stale-state race conditions.
-  // Celo USDC keeps MAX_UINT256 as-is after each transferFrom, so this is nearly
-  // a no-op on subsequent sends, but the first run always needs it.
-  console.info("[agentBridge] agent self-approving LI.FI spender", {
-    tool: final.tool,
-    approvalAddress,
-    fromAmount: fromAmount.toString(),
-    relayValue: formatEther(value),
-  });
-  const approveData = encodeFunctionData({
-    abi: erc20Abi,
-    functionName: "approve",
-    args: [approvalAddress, 2n ** 256n - 1n],
-  });
-  const approveTxHash = await agentSendTx(tokenAddress, approveData, 0n);
-  const approveReceipt = await agentClient.waitForTransactionReceipt({ hash: approveTxHash, timeout: 60_000 });
-  if (approveReceipt.status !== "success") {
-    await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
-    throw new Error(`Agent USDC approval failed on-chain (status: ${approveReceipt.status}). Hash: ${approveTxHash}`);
+  // If the fresh quote uses a different spender than LIFI_DIAMOND, approve that too
+  if (approvalAddress.toLowerCase() !== LIFI_DIAMOND.toLowerCase()) {
+    console.info("[agentBridge] fresh quote uses non-Diamond spender — approving", { approvalAddress });
+    const extraApproveData = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [approvalAddress, 2n ** 256n - 1n],
+    });
+    const extraHash = await agentSendTx(tokenAddress, extraApproveData, 0n);
+    await agentClient.waitForTransactionReceipt({ hash: extraHash, timeout: 60_000 });
+    console.info("[agentBridge] extra approval confirmed", { extraHash });
   }
-  console.info("[agentBridge] agent approval confirmed", { approveTxHash, block: approveReceipt.blockNumber.toString() });
 
-  // ── Step 5: CELO balance check ───────────────────────────────────────────────
+  // ── Step 6: CELO balance check ───────────────────────────────────────────────
   if (value > 0n) {
     const agentCelo = await agentClient.getBalance({ address: agentAddress });
+    console.info("[agentBridge] relay CELO check", { need: formatEther(value), have: formatEther(agentCelo) });
     if (agentCelo < value) {
       await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
       throw new Error(
         `Agent wallet has insufficient CELO for relay fee. ` +
-        `Needs ${formatEther(value)} CELO, has ${formatEther(agentCelo)} CELO. ` +
-        `Top up the agent wallet at ${agentAddress}.`,
+        `Needs ${formatEther(value)} CELO, has ${formatEther(agentCelo)} CELO. Top up ${agentAddress}.`,
       );
     }
   }
 
-  // ── Step 6: execute ─────────────────────────────────────────────────────────
-  // All prerequisites confirmed: agent owns USDC, LI.FI spender approved.
-  // Skip simulation — forno.celo.org is not an archive node and rejects eth_call
-  // at historical block numbers. On-chain revert is handled by the catch below.
+  // ── Step 7: execute ──────────────────────────────────────────────────────────
+  console.info("[agentBridge] submitting bridge tx", { tool: final.tool, to: tx.to, value: formatEther(value) });
   let txHash: `0x${string}`;
   try {
     txHash = await agentSendTx(tx.to, tx.data, value);
   } catch (err) {
-    console.error("[agentBridge] bridge tx failed", {
+    console.error("[agentBridge] bridge tx submission failed", {
       error: err instanceof Error ? err.message : String(err),
     });
     await refundUser(agentClient, tokenAddress, userWallet, fromAmount);
