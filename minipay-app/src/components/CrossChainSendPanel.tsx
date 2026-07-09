@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { isAddress } from "viem";
-import { getBridgeChains, getBridgeQuote, getBridgeStatus, executeBridgeSend } from "@/lib/agent";
+import { getBridgeChains, getBridgeQuote, getBridgeStatus } from "@/lib/agent";
 import { formatBridgeSignError } from "@/lib/bridgeErrors";
 import { encodeErc20Approve, MAX_UINT256, readErc20Allowance, readErc20Balance } from "@/lib/erc20";
 import { sendTransaction, shortAddress, waitForTransaction } from "@/lib/wallet";
@@ -10,9 +10,7 @@ import { sendTransaction, shortAddress, waitForTransaction } from "@/lib/wallet"
 import type { ChainInfo, BridgeQuoteResult } from "@/lib/types";
 
 const CELO_CHAIN_ID = 42220;
-
-/** CowryPay contract — same address as GrantAccessScreen. Agent uses payOnBehalf to pull user's USDC. */
-const COWRYPAY_ADDRESS = "0xf253dde47ca717737be3aefb76326180c2239e04" as const;
+const LIFI_DIAMOND  = "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE" as const;
 
 const fieldClass =
   "w-full bg-cowry-card border border-cowry-border rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-cowry-green/50 transition-colors appearance-none";
@@ -179,45 +177,56 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
     if (!quote || !amount || !fromToken || !toChain?.usdc || !recipientValid) return;
     setError("");
     try {
-      const decimals = selectedSource?.decimals ?? 6;
+      const decimals  = selectedSource?.decimals ?? 6;
       const fromAmount = String(Math.round(Number(amount) * 10 ** decimals));
       const token  = fromToken as `0x${string}`;
       const owner  = walletAddress as `0x${string}`;
       const needed = BigInt(fromAmount);
 
-      // Balance check
+      // 1. Balance check
       const balance = await readErc20Balance(token, owner);
       if (balance < needed) {
         throw new Error(`Insufficient ${selectedSource?.label ?? "token"} balance on Celo.`);
       }
 
-      // Cowry agent pulls USDC via CowryPay.payOnBehalf — user must have approved CowryPay.
-      // This is normally done once during onboarding (Authorize Cowry AI screen).
-      const allowance = await readErc20Allowance(token, owner, COWRYPAY_ADDRESS);
+      // 2. One-time approval of the LI.FI bridge spender
+      // The spender comes from the quote (usually LI.FI Diamond). This is a one-time
+      // MAX_UINT256 approval — subsequent sends skip this step automatically.
+      const spender = (quote.approvalAddress || LIFI_DIAMOND) as `0x${string}`;
+      const allowance = await readErc20Allowance(token, owner, spender);
       if (allowance < needed) {
         setStep("approving");
         const approveHash = await sendTransaction({
           to:    token,
-          data:  encodeErc20Approve(token, COWRYPAY_ADDRESS, MAX_UINT256),
+          data:  encodeErc20Approve(token, spender, MAX_UINT256),
           value: "0x0",
         });
         await waitForTransaction(approveHash);
-
-        const allowanceAfter = await readErc20Allowance(token, owner, COWRYPAY_ADDRESS);
+        const allowanceAfter = await readErc20Allowance(token, owner, spender);
         if (allowanceAfter < needed) {
           throw new Error("Approval did not complete. Confirm in MiniPay and try again.");
         }
       }
 
-      // Agent executes the bridge — no CELO needed from the user
+      // 3. Fetch a fresh quote right before signing — avoids bridge calldata expiry
+      // (some bridges like Squid embed time-sensitive payloads in the calldata).
       setStep("executing");
-      const { txHash: hash } = await executeBridgeSend({
+      const freshQuote = await getBridgeQuote({
+        fromChainId:      CELO_CHAIN_ID,
         fromTokenAddress: fromToken,
         fromAmount,
-        fromWallet:       walletAddress,
+        fromAddress:      walletAddress,
         toChainId,
         toTokenAddress:   toChain.usdc,
-        toAddress:        recipient,
+        toAddress:        recipient as `0x${string}`,
+      });
+
+      // 4. User signs the bridge tx directly from their wallet — no agent, no risk of
+      // funds getting stuck. LI.FI pulls USDC from user via the approval above.
+      const hash = await sendTransaction({
+        to:    freshQuote.transactionRequest.to    as `0x${string}`,
+        data:  freshQuote.transactionRequest.data  as `0x${string}`,
+        value: freshQuote.transactionRequest.value || "0x0",
       });
       setTxHash(hash);
       setStep("polling");
@@ -415,7 +424,7 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
                         {quote.summary}
                       </p>
                       <p className="text-[10px] text-cowry-muted border-t border-cowry-border/50 pt-2">
-                        Cowry executes this send — no CELO needed. You may sign a one-time token approval in MiniPay if this is your first cross-chain send.
+                        You sign two transactions in MiniPay: a one-time approval (first time only), then the bridge send. Your funds stay in your wallet until you confirm.
                       </p>
                     </div>
                   )}
@@ -427,15 +436,15 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
               <div className="w-12 h-12 rounded-full border-4 border-cowry-mint border-t-transparent animate-spin" />
               <h3 className="text-base font-bold text-white">Approve token access</h3>
               <p className="text-sm text-cowry-muted max-w-xs">
-                Confirm the approval in MiniPay so Cowry can move your {selectedSource?.label ?? "tokens"} for this send. This is a one-time step.
+                Confirm the one-time approval in MiniPay so the bridge can move your {selectedSource?.label ?? "tokens"}. You will not need to do this again.
               </p>
             </div>
           ) : step === "executing" ? (
             <div className="flex flex-col items-center py-12 text-center space-y-4">
               <div className="w-12 h-12 rounded-full border-4 border-cowry-green border-t-transparent animate-spin" />
-              <h3 className="text-base font-bold text-white">Submitting send…</h3>
+              <h3 className="text-base font-bold text-white">Confirm in MiniPay…</h3>
               <p className="text-sm text-cowry-muted max-w-xs">
-                Cowry is executing your cross-chain send. No wallet confirmation needed.
+                Confirm the bridge transaction in your MiniPay wallet to send.
               </p>
             </div>
           ) : step === "polling" ? (
