@@ -37,15 +37,13 @@ export type ChainInfo = {
 };
 
 export const SUPPORTED_CHAINS: Record<number, ChainInfo> = {
-  1:      { chainId: 1,      name: "Ethereum",  usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", usdcDecimals: 6 },
-  10:     { chainId: 10,     name: "Optimism",  usdc: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85", usdcDecimals: 6 },
-  56:     { chainId: 56,     name: "BNB Chain", usdc: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", usdcDecimals: 18 },
-  137:    { chainId: 137,    name: "Polygon",   usdc: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", usdcDecimals: 6 },
-  8453:   { chainId: 8453,   name: "Base",      usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", usdcDecimals: 6 },
-  42161:  { chainId: 42161,  name: "Arbitrum",  usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", usdcDecimals: 6 },
-  43114:  { chainId: 43114,  name: "Avalanche", usdc: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", usdcDecimals: 6 },
-  59144:  { chainId: 59144,  name: "Linea",     usdc: "0x176211869cA2b568f2A7D4EE941E073a821EE1ff", usdcDecimals: 6 },
-  534352: { chainId: 534352, name: "Scroll",    usdc: "0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4", usdcDecimals: 6 },
+  1:     { chainId: 1,     name: "Ethereum",  usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", usdcDecimals: 6 },
+  10:    { chainId: 10,    name: "Optimism",  usdc: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85", usdcDecimals: 6 },
+  56:    { chainId: 56,    name: "BNB Chain", usdc: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", usdcDecimals: 18 },
+  137:   { chainId: 137,   name: "Polygon",   usdc: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", usdcDecimals: 6 },
+  8453:  { chainId: 8453,  name: "Base",      usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", usdcDecimals: 6 },
+  43114: { chainId: 43114, name: "Avalanche", usdc: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", usdcDecimals: 6 },
+  59144: { chainId: 59144, name: "Linea",     usdc: "0x176211869cA2b568f2A7D4EE941E073a821EE1ff", usdcDecimals: 6 },
   42220:  {
     chainId: 42220,
     name: "Celo",
@@ -210,24 +208,40 @@ async function rawBridgeQuote(params: BridgeQuoteParams, feeRatio: number): Prom
     fee:         feeRatio.toFixed(6),
   };
 
-  // Try CCTP first (zero native relay fee), then Across, then fall back to default
+  // MiniPay users typically have no spare CELO for relay fees, so we only accept
+  // routes where the bridge requires zero (or negligible) native CELO as msg.value.
+  // CCTP and Across never charge a CELO relay fee; Squid charges ~0.4 CELO.
+  //
+  // Preference order: CCTP → Across → any other bridge with value = 0.
+  // If every available route requires CELO, we throw a clear error rather than
+  // accepting a route the user can't pay for.
+  const CELO_VALUE_LIMIT = 10_000_000_000_000_000n; // 0.01 CELO — enough for gas, blocks relay fees
+
   for (const preferBridges of ["cctp", "across", ""]) {
     try {
       const q = await lifiGet<BridgeQuote>("/quote", preferBridges ? { ...base, preferBridges } : base);
-      // Reject routes that require >0.1 CELO native relay — those drain the agent wallet.
-      // Fall through to next bridge preference instead.
       const nativeValue = BigInt(q.transactionRequest.value || "0");
-      const CELO_THRESHOLD = 100_000_000_000_000_000n; // 0.1 CELO in wei
-      if (nativeValue > CELO_THRESHOLD && preferBridges !== "") {
-        continue; // Try next preference
+
+      if (nativeValue <= CELO_VALUE_LIMIT) {
+        return q; // Zero-fee route found — use it
       }
-      return q;
+
+      if (preferBridges !== "") {
+        continue; // This bridge wants CELO — try the next preference
+      }
+
+      // Fallback also requires CELO (likely Squid) — no usable route
+      throw new Error(
+        `Cross-chain send to ${chainName(params.toChainId)} is not available without CELO. ` +
+        `Please choose Ethereum, Base, Arbitrum, Optimism, Polygon, or Avalanche instead.`,
+      );
     } catch (e) {
-      if (preferBridges === "") throw e; // No more fallbacks
-      // Route not available via this bridge — try next
+      if (e instanceof Error && e.message.startsWith("Cross-chain send")) throw e;
+      if (e instanceof Error && e.message.startsWith("No route available")) throw e;
+      if (preferBridges === "") throw e;
+      // This bridge has no route — try next preference
     }
   }
-  // Should never reach here (last iteration throws), but TypeScript needs this
   throw new Error("No bridge route available.");
 }
 

@@ -1,7 +1,7 @@
 import { CELO_USDM_ADDRESS, CELO_USDC_ADDRESS } from "./celoTokens.js";
 const LIFI_BASE = "https://li.quest/v1";
 const INTEGRATOR = process.env.LIFI_INTEGRATOR?.trim() || "cowry";
-const BRIDGE_FEE = "0.003";
+const BASE_PLATFORM_FEE = 0.003;
 export const CELO_CHAIN_ID = 42220;
 export const SUPPORTED_CHAINS = {
     1: {
@@ -34,12 +34,6 @@ export const SUPPORTED_CHAINS = {
         usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
         usdcDecimals: 6
     },
-    42161: {
-        chainId: 42161,
-        name: "Arbitrum",
-        usdc: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
-        usdcDecimals: 6
-    },
     43114: {
         chainId: 43114,
         name: "Avalanche",
@@ -50,12 +44,6 @@ export const SUPPORTED_CHAINS = {
         chainId: 59144,
         name: "Linea",
         usdc: "0x176211869cA2b568f2A7D4EE941E073a821EE1ff",
-        usdcDecimals: 6
-    },
-    534352: {
-        chainId: 534352,
-        name: "Scroll",
-        usdc: "0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4",
         usdcDecimals: 6
     },
     42220: {
@@ -130,9 +118,8 @@ async function lifiGet(path, params) {
 function chainName(id) {
     return SUPPORTED_CHAINS[id]?.name ?? `chain-${id}`;
 }
-export async function getBridgeQuote(params) {
-    validateCeloOutboundBridge(params);
-    return lifiGet("/quote", {
+async function rawBridgeQuote(params, feeRatio) {
+    const base = {
         fromChain: String(params.fromChainId),
         toChain: String(params.toChainId),
         fromToken: params.fromTokenAddress,
@@ -141,8 +128,46 @@ export async function getBridgeQuote(params) {
         fromAddress: params.fromAddress,
         toAddress: params.toAddress,
         integrator: INTEGRATOR,
-        fee: BRIDGE_FEE
-    });
+        fee: feeRatio.toFixed(6)
+    };
+    const CELO_VALUE_LIMIT = 10_000_000_000_000_000n;
+    for (const preferBridges of [
+        "cctp",
+        "across",
+        ""
+    ]){
+        try {
+            const q = await lifiGet("/quote", preferBridges ? {
+                ...base,
+                preferBridges
+            } : base);
+            const nativeValue = BigInt(q.transactionRequest.value || "0");
+            if (nativeValue <= CELO_VALUE_LIMIT) {
+                return q;
+            }
+            if (preferBridges !== "") {
+                continue;
+            }
+            throw new Error(`Cross-chain send to ${chainName(params.toChainId)} is not available without CELO. ` + `Please choose Ethereum, Base, Arbitrum, Optimism, Polygon, or Avalanche instead.`);
+        } catch (e) {
+            if (e instanceof Error && e.message.startsWith("Cross-chain send")) throw e;
+            if (e instanceof Error && e.message.startsWith("No route available")) throw e;
+            if (preferBridges === "") throw e;
+        }
+    }
+    throw new Error("No bridge route available.");
+}
+export async function getBridgeQuote(params, relayCostUSD = 0) {
+    validateCeloOutboundBridge(params);
+    const fromDecimals = params.fromTokenAddress.toLowerCase() === CELO_USDM_ADDRESS.toLowerCase() ? 18 : 6;
+    const fromAmountUSD = Number(params.fromAmount) / 10 ** fromDecimals;
+    const executionFeeRatio = fromAmountUSD > 0 ? Math.min(relayCostUSD / fromAmountUSD, 0.02) : 0;
+    const totalFeeRatio = BASE_PLATFORM_FEE + executionFeeRatio;
+    const quote = await rawBridgeQuote(params, totalFeeRatio);
+    return {
+        ...quote,
+        platformFeeUSD: fromAmountUSD * totalFeeRatio
+    };
 }
 export async function getBridgeStatus(txHash, fromChainId, toChainId) {
     let raw;
@@ -177,14 +202,14 @@ export function formatBridgeSummary(quote) {
     const sentHuman = (Number(quote.estimate.fromAmount) / 10 ** from.decimals).toFixed(4);
     const receivedMin = (Number(quote.estimate.toAmountMin) / 10 ** to.decimals).toFixed(4);
     const durationMin = Math.ceil(quote.estimate.executionDuration / 60);
-    const feeUsd = quote.estimate.feeCosts.reduce((s, f)=>s + Number(f.amountUSD), 0).toFixed(2);
-    const gasUsd = quote.estimate.gasCosts.reduce((s, g)=>s + Number(g.amountUSD), 0).toFixed(2);
+    const platformFee = (quote.platformFeeUSD ?? 0).toFixed(3);
     return [
         `Cross-chain send via ${quote.tool}`,
-        `• You send:    ${sentHuman} ${from.symbol} on Celo`,
+        `• You send:       ${sentHuman} ${from.symbol} on Celo`,
         `• Recipient gets: ≥${receivedMin} USDC on ${chainName(quote.action.toChainId)}`,
-        `• Fee:      $${feeUsd}  |  Gas: $${gasUsd}`,
-        `• Est. time: ~${durationMin} min`
+        `• Platform fee:   $${platformFee}`,
+        `• Est. time:      ~${durationMin} min`,
+        `  (No CELO needed — Cowry covers the relay cost)`
     ].join("\n");
 }
 

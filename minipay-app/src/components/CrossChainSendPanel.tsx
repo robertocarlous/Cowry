@@ -168,7 +168,13 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
       });
       setQuote(q);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not get send quote");
+      const raw = e instanceof Error ? e.message : "Could not get send quote";
+      const friendly = raw.startsWith("No route available")
+        ? "No bridge route found for this amount. Try increasing the amount (minimum ~$5) or choose a different destination chain."
+        : raw.startsWith("Cross-chain send")
+        ? raw // already a clear user-facing message from bridgeClient
+        : raw;
+      setError(friendly);
       setStep("form");
     }
   };
