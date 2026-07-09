@@ -196,26 +196,25 @@ function chainName(id: number): string {
  * so the agent wallet doesn't need a CELO balance to cover relay costs.
  */
 async function rawBridgeQuote(params: BridgeQuoteParams, feeRatio: number): Promise<BridgeQuote> {
+  // Always deny Squid — it charges ~0.4 CELO as msg.value which MiniPay users don't have.
+  // Denying at the API level is more reliable than checking value after the fact,
+  // because LI.FI won't even consider Squid in its routing calculation.
   const base = {
-    fromChain:   String(params.fromChainId),
-    toChain:     String(params.toChainId),
-    fromToken:   params.fromTokenAddress,
-    toToken:     params.toTokenAddress,
-    fromAmount:  params.fromAmount,
-    fromAddress: params.fromAddress,
-    toAddress:   params.toAddress,
-    integrator:  INTEGRATOR,
-    fee:         feeRatio.toFixed(6),
+    fromChain:    String(params.fromChainId),
+    toChain:      String(params.toChainId),
+    fromToken:    params.fromTokenAddress,
+    toToken:      params.toTokenAddress,
+    fromAmount:   params.fromAmount,
+    fromAddress:  params.fromAddress,
+    toAddress:    params.toAddress,
+    integrator:   INTEGRATOR,
+    fee:          feeRatio.toFixed(6),
+    denyBridges:  "squid",
   };
 
-  // MiniPay users typically have no spare CELO for relay fees, so we only accept
-  // routes where the bridge requires zero (or negligible) native CELO as msg.value.
-  // CCTP and Across never charge a CELO relay fee; Squid charges ~0.4 CELO.
-  //
-  // Preference order: CCTP → Across → any other bridge with value = 0.
-  // If every available route requires CELO, we throw a clear error rather than
-  // accepting a route the user can't pay for.
-  const CELO_VALUE_LIMIT = 10_000_000_000_000_000n; // 0.01 CELO — enough for gas, blocks relay fees
+  // Preference order: CCTP → Across → any non-Squid bridge.
+  // Safety valve: still check value in case another high-CELO bridge slips through.
+  const CELO_VALUE_LIMIT = 10_000_000_000_000_000n; // 0.01 CELO
 
   for (const preferBridges of ["cctp", "across", ""]) {
     try {
@@ -223,22 +222,19 @@ async function rawBridgeQuote(params: BridgeQuoteParams, feeRatio: number): Prom
       const nativeValue = BigInt(q.transactionRequest.value || "0");
 
       if (nativeValue <= CELO_VALUE_LIMIT) {
-        return q; // Zero-fee route found — use it
+        return q;
       }
 
-      if (preferBridges !== "") {
-        continue; // This bridge wants CELO — try the next preference
-      }
+      if (preferBridges !== "") continue;
 
-      // Fallback route requires CELO (e.g. Squid) — amount likely below bridge minimum
       throw new Error(
-        `No zero-fee route to ${chainName(params.toChainId)} for this amount. ` +
-        `Try sending at least $5.`,
+        `No fee-free route to ${chainName(params.toChainId)} for this amount. ` +
+        `Try a larger amount or a different chain.`,
       );
     } catch (e) {
-      if (e instanceof Error && e.message.startsWith("No zero-fee route")) throw e;
-      if (preferBridges === "") throw e; // All options exhausted
-      // This bridge preference has no route — silently try the next one
+      if (e instanceof Error && e.message.startsWith("No fee-free route")) throw e;
+      if (preferBridges === "") throw e;
+      // This bridge preference has no route — try next
     }
   }
   throw new Error("No bridge route available.");

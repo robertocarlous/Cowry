@@ -168,9 +168,7 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
       });
       setQuote(q);
     } catch (e) {
-      const raw = e instanceof Error ? e.message : "Could not get quote";
-      // "No route available…" and "No zero-fee route…" are already user-facing from bridgeClient
-      setError(raw);
+      setError(e instanceof Error ? e.message : "Could not get quote");
       setStep("form");
     }
   };
