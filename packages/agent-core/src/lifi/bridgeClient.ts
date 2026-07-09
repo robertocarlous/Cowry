@@ -230,16 +230,15 @@ async function rawBridgeQuote(params: BridgeQuoteParams, feeRatio: number): Prom
         continue; // This bridge wants CELO — try the next preference
       }
 
-      // Fallback also requires CELO (likely Squid) — no usable route
+      // Fallback route requires CELO (e.g. Squid) — amount likely below bridge minimum
       throw new Error(
-        `Cross-chain send to ${chainName(params.toChainId)} is not available without CELO. ` +
-        `Please choose Ethereum, Base, Arbitrum, Optimism, Polygon, or Avalanche instead.`,
+        `No zero-fee route to ${chainName(params.toChainId)} for this amount. ` +
+        `Try sending at least $5.`,
       );
     } catch (e) {
-      if (e instanceof Error && e.message.startsWith("Cross-chain send")) throw e;
-      if (e instanceof Error && e.message.startsWith("No route available")) throw e;
-      if (preferBridges === "") throw e;
-      // This bridge has no route — try next preference
+      if (e instanceof Error && e.message.startsWith("No zero-fee route")) throw e;
+      if (preferBridges === "") throw e; // All options exhausted
+      // This bridge preference has no route — silently try the next one
     }
   }
   throw new Error("No bridge route available.");

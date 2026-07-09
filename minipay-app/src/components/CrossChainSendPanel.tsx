@@ -168,13 +168,9 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
       });
       setQuote(q);
     } catch (e) {
-      const raw = e instanceof Error ? e.message : "Could not get send quote";
-      const friendly = raw.startsWith("No route available")
-        ? "No bridge route found for this amount. Try increasing the amount (minimum ~$5) or choose a different destination chain."
-        : raw.startsWith("Cross-chain send")
-        ? raw // already a clear user-facing message from bridgeClient
-        : raw;
-      setError(friendly);
+      const raw = e instanceof Error ? e.message : "Could not get quote";
+      // "No route available…" and "No zero-fee route…" are already user-facing from bridgeClient
+      setError(raw);
       setStep("form");
     }
   };
@@ -498,8 +494,8 @@ export function CrossChainSendPanel({ walletAddress, onClose, onSuccess }: Props
               onClick={quote ? handleExecute : handleGetQuote}
               disabled={(step === "quote" && !quote) || !amount || !fromToken || !toChain?.usdc || !recipientValid}
               className="w-full py-3.5 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2
-                disabled:opacity-40 disabled:cursor-not-allowed
-                enabled:bg-cowry-green enabled:text-black enabled:hover:bg-cowry-mint"
+                bg-cowry-green text-black active:scale-95
+                disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
             >
               {step === "quote" && !quote
                 ? "Getting quote…"
